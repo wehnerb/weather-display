@@ -13,7 +13,7 @@
 // For split/tri layouts, the ?view= parameter selects which half is shown:
 //   ?layout=split&view=radar      — full-width animated radar map
 //   ?layout=split&view=conditions — full-width conditions + 3-day forecast
-//   Default view when omitted: radar
+//   Default view when omitted: conditions
 //
 // Data sources (all free, no authentication except AirNow):
 //   Current conditions  — NWS /stations/KFAR/observations/latest
@@ -106,7 +106,7 @@ const HOURLY_HEIGHT = { full: 100, wide: 80 };
 
 // Default values
 const DEFAULT_LAYOUT     = 'wide';
-const DEFAULT_VIEW_SMALL = 'radar';  // default ?view= for split/tri
+const DEFAULT_VIEW_SMALL = 'conditions';  // default ?view= for split/tri
 const ERROR_RETRY_SECONDS = 60;
 
 
