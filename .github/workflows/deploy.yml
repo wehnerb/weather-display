@@ -1,1 +1,39 @@
+# =============================================================================
+# weather-display — GitHub Actions deployment workflow
+# =============================================================================
+# Deploys to staging on pushes to the staging branch.
+# Deploys to production on pushes to the main branch.
+#
+# Required GitHub repository secrets (Settings → Secrets and variables →
+# Actions → New repository secret):
+#   CLOUDFLARE_API_TOKEN  — Cloudflare API token with Workers:Edit permission
+#   CLOUDFLARE_ACCOUNT_ID — Cloudflare account ID
+#
+# Worker secrets (AIRNOW_API_KEY) are NOT deployed by this workflow.
+# They must be set manually in the Cloudflare dashboard for each environment
+# under Workers & Pages → weather-display(-staging) → Settings → Variables.
+# =============================================================================
 
+name: Deploy weather-display
+
+on:
+  push:
+    branches:
+      - staging
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
