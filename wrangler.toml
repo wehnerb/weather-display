@@ -1,0 +1,48 @@
+# =============================================================================
+# weather-display — Cloudflare Workers configuration
+# =============================================================================
+# Staging:    weather-display-staging.bwehner.workers.dev
+# Production: weather-display.bwehner.workers.dev
+#
+# Secrets — set manually in the Cloudflare dashboard for EACH environment
+# (staging and production separately). Never store secret values here.
+#   AIRNOW_API_KEY — EPA AirNow API key for AQI data
+#                    Register at: https://docs.airnowapi.org/account/request
+#
+# GitHub Actions secrets — set in repo Settings → Secrets and variables:
+#   CLOUDFLARE_API_TOKEN  — Cloudflare API token (Workers:Edit permission)
+#   CLOUDFLARE_ACCOUNT_ID — Cloudflare account ID
+#
+# Note: GitHub Actions deploys code only. Worker secrets (AIRNOW_API_KEY)
+# must be added manually in the Cloudflare dashboard after first deploy.
+# =============================================================================
+
+name                = "weather-display"
+main                = "src/index.js"
+compatibility_date  = "2024-09-23"
+
+# Non-sensitive configuration exposed as environment variables.
+# NWS requires a descriptive User-Agent string identifying the application
+# and a contact address for all API requests.
+[vars]
+NWS_USER_AGENT = "FFD-Weather-Display/1.0 (fargofiredepartment@fargond.gov)"
+
+# -----------------------------------------------------------------------------
+# Staging environment — mirrors production; deploy by pushing to staging branch.
+# Verify on display hardware before merging to main.
+# -----------------------------------------------------------------------------
+[env.staging]
+name = "weather-display-staging"
+
+[env.staging.vars]
+NWS_USER_AGENT = "FFD-Weather-Display/1.0 (fargofiredepartment@fargond.gov)"
+
+# -----------------------------------------------------------------------------
+# Production environment — live Worker served to display hardware.
+# Deploy by merging to the main branch.
+# -----------------------------------------------------------------------------
+[env.production]
+name = "weather-display"
+
+[env.production.vars]
+NWS_USER_AGENT = "FFD-Weather-Display/1.0 (fargofiredepartment@fargond.gov)"
