@@ -35,6 +35,10 @@
 //   free tier covers personal/non-commercial use; public safety use is generally
 //   accepted.
 //
+//   RainViewer tile size note:
+//   256px tiles only support zoom levels 0–6. Zoom 8 requires 512px tiles.
+//   Leaflet's zoomOffset:-1 compensates so the visual zoom level is unchanged.
+//
 // Caching:
 //   - Rendered HTML cached per layout+view in Workers Cache API for CACHE_SECONDS.
 //   - NWS and AirNow responses edge-cached with per-source TTLs.
@@ -90,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =    5;   // increment to invalidate all cached pages
+const CACHE_VERSION        =    6;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -324,8 +328,6 @@ export default {
       const needsRadar   = !isSmall || viewKey === 'radar';
 
       // Fetch all required data in parallel to minimise total latency.
-      // Unneeded fetches resolve immediately with null so the destructuring
-      // pattern stays consistent regardless of layout.
       const [
         obsData,
         gridData,
@@ -339,7 +341,7 @@ export default {
         needsWeather ? fetchNwsGridData(env.NWS_USER_AGENT)     : Promise.resolve(null),
         needsWeather ? fetchNwsDaily(env.NWS_USER_AGENT)        : Promise.resolve(null),
         needsWeather ? fetchNwsHourly(env.NWS_USER_AGENT)       : Promise.resolve(null),
-        fetchNwsAlerts(env.NWS_USER_AGENT),   // always fetched — alert banner on all views
+        fetchNwsAlerts(env.NWS_USER_AGENT),
         needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY) : Promise.resolve(null),
         needsRadar   ? fetchRainViewerFrames()             : Promise.resolve(null),
       ]);
@@ -354,7 +356,6 @@ export default {
       const aqi      = processAqi(aqiData);
       const sunTimes = calcSunriseSunset(now, LOCATION_LAT, LOCATION_LON);
 
-      // Render the appropriate HTML page for this layout+view.
       let html;
       if (isSmall && viewKey === 'radar') {
         html = renderRadarOnly(radarFrames, alerts, layout, layoutKey);
@@ -550,16 +551,15 @@ async function fetchAirNowAqi(apiKey) {
 }
 
 // Fetches the list of available radar frames from the RainViewer public API.
-// RainViewer allows server-side requests from datacenter IPs, and their tile CDN
-// includes proper CORS headers for client-side Leaflet tile loading.
+// Server-side fetch from a Cloudflare Worker is allowed (no IP blocking).
+// The tile CDN includes proper CORS headers for client-side Leaflet tile loading.
 //
-// Returns an array of frame objects { tileBase: String, time: Number } where:
-//   tileBase — full CDN URL prefix for this frame, ready for Leaflet tile URL
-//              construction. Append "/{z}/{x}/{y}/4/0_0.png" to get a tile URL.
-//   time     — Unix timestamp in seconds (used for the on-screen time label)
+// Returns an array of { tileBase, time } objects:
+//   tileBase — CDN URL prefix (append "/512/{z}/{x}/{y}/4/0_0.png" for a tile URL)
+//   time     — Unix timestamp in seconds (for the on-screen time label)
 //
-// Tile URL colour scheme 4 = Meteored (closest to standard NWS radar palette).
-// Options 0_0 = smooth:off, snow:off — the most universally supported setting.
+// 512px tiles are required — RainViewer's 256px tiles only support zoom 0–6.
+// Using 512px tiles with Leaflet's zoomOffset:-1 keeps the visual zoom unchanged.
 //
 // Returns null on any error so callers degrade gracefully.
 async function fetchRainViewerFrames() {
@@ -574,8 +574,6 @@ async function fetchRainViewerFrames() {
     }
     const data = await res.json();
 
-    // data.radar.past is an ascending array of { time, path } objects.
-    // data.host is the CDN base URL (e.g. "https://tilecache.rainviewer.com").
     if (!data.radar || !data.radar.past || !data.radar.past.length) {
       console.error('RainViewer: no past frames in response');
       return null;
@@ -586,8 +584,8 @@ async function fetchRainViewerFrames() {
       .slice(-RADAR_FRAME_COUNT)
       .map(function(f) {
         return {
-          tileBase: host + f.path,   // full CDN prefix, e.g. ".../v2/radar/1744300800"
-          time:     f.time,          // Unix seconds — for on-screen timestamp label
+          tileBase: host + f.path,   // e.g. "https://tilecache.rainviewer.com/v2/radar/1744300800"
+          time:     f.time,          // Unix seconds — converted to Date for display
         };
       });
 
@@ -1351,15 +1349,19 @@ function buildForecastAlertBadge(futureAlerts, dateStr, scale) {
 // Builds the client-side JavaScript block that initialises the Leaflet map
 // and runs the radar animation loop using RainViewer tile data.
 //
-// RainViewer frame data is fetched server-side and embedded directly into the
-// rendered HTML as a JSON array — no client-side fetch required. Each frame:
-//   tileBase — CDN URL prefix, e.g. "https://tilecache.rainviewer.com/v2/radar/1744300800"
-//   time     — Unix timestamp in seconds (used for the on-screen time label)
+// RainViewer frame data is fetched server-side and embedded as a JSON array —
+// no client-side fetch required. Each frame object:
+//   tileBase — CDN URL prefix (e.g. "https://tilecache.rainviewer.com/v2/radar/1744300800")
+//   time     — Unix timestamp in seconds (for the on-screen time label)
 //
-// Tile URL format: {tileBase}/256/{z}/{x}/{y}/4/0_0.png
-//   256    = tile size in pixels
+// Tile URL: {tileBase}/512/{z}/{x}/{y}/4/0_0.png
+//   512    = tile size in pixels (required for zoom 7–8; 256px only supports 0–6)
 //   4      = Meteored colour scheme (closest to standard NWS radar palette)
-//   0_0    = smooth:off / snow:off — the most universally supported option set
+//   0_0    = smooth:off, snow:off
+//
+// Leaflet zoomOffset:-1 compensates for 512px tile size so that the visual
+// zoom level (RADAR_ZOOM=8) requests zoom-7 tiles from the server. This is
+// the standard Leaflet approach for 512px tiles and matches the tile size used.
 //
 // If radarFrames is null (server fetch failed), the "Radar data unavailable"
 // fallback message is shown over the base map.
@@ -1369,7 +1371,6 @@ function buildRadarScript(radarFrames) {
 
   return (
     '<script>' +
-    // Configuration values embedded by the Worker at render time.
     'var RADAR_LAT='      + LOCATION_LAT   + ';' +
     'var RADAR_LON='      + LOCATION_LON   + ';' +
     'var RADAR_ZOOM='     + RADAR_ZOOM     + ';' +
@@ -1380,8 +1381,7 @@ function buildRadarScript(radarFrames) {
 
     'document.addEventListener("DOMContentLoaded",function(){' +
 
-      // Create the Leaflet map centred on Fargo. All interaction disabled —
-      // this is a passive display board, not an interactive map.
+      // Create the Leaflet map. All interaction disabled — passive display only.
       'var map=L.map("radar-map",{' +
         'center:[RADAR_LAT,RADAR_LON],' +
         'zoom:RADAR_ZOOM,' +
@@ -1394,27 +1394,28 @@ function buildRadarScript(radarFrames) {
         'keyboard:false' +
       '});' +
 
-      // OpenStreetMap base tiles.
+      // OpenStreetMap base tiles (256px, no zoomOffset needed).
       'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{' +
         'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors",' +
         'maxZoom:18' +
       '}).addTo(map);' +
 
-      // If no frames were embedded (server fetch failed), show fallback.
+      // Show fallback message if server-side frame fetch failed.
       'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
         'var el=document.getElementById("radar-unavailable");' +
         'if(el)el.style.display="flex";' +
         'return;' +
       '}' +
 
-      // Pre-create one tile layer per radar frame. All start at opacity 0.
-      // Adding them all immediately triggers background pre-loading so that
-      // subsequent frames render without visible delay.
-      // Tile URL: {tileBase}/256/{z}/{x}/{y}/4/0_0.png
+      // Pre-create one tile layer per frame, all hidden at opacity 0.
+      // Adding them immediately triggers background tile pre-loading.
+      // 512px tiles with zoomOffset:-1: visual zoom 8 → server zoom 7.
+      // This is required because RainViewer 256px tiles cap at zoom 6.
       'var layers=RADAR_FRAMES.map(function(f){' +
-        'return L.tileLayer(f.tileBase+"/256/{z}/{x}/{y}/4/0_0.png",{' +
+        'return L.tileLayer(f.tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
           'opacity:0,' +
-          'tileSize:256' +
+          'tileSize:512,' +
+          'zoomOffset:-1' +
         '});' +
       '});' +
       'layers.forEach(function(l){l.addTo(map);});' +
@@ -1424,11 +1425,10 @@ function buildRadarScript(radarFrames) {
       'var timeEl=document.getElementById("radar-time");' +
 
       'function showFrame(){' +
-        // Reveal current frame; hide all others.
         'layers.forEach(function(l,i){' +
           'l.setOpacity(i===frameIdx?RADAR_OPACITY:0);' +
         '});' +
-        // Update timestamp label. RainViewer times are Unix seconds.
+        // RainViewer times are Unix seconds — multiply by 1000 for JS Date.
         'if(timeEl){' +
           'var ts=new Date(RADAR_FRAMES[frameIdx].time*1000);' +
           'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
@@ -1436,11 +1436,9 @@ function buildRadarScript(radarFrames) {
             'hour:"numeric",minute:"2-digit",hour12:true' +
           '});' +
         '}' +
-        // Update loop progress bar.
         'if(progressEl){' +
           'progressEl.style.width=((frameIdx+1)/layers.length*100)+"%";' +
         '}' +
-        // Advance frame; hold longer on the latest frame before looping.
         'var isLast=(frameIdx===layers.length-1);' +
         'frameIdx=(frameIdx+1)%layers.length;' +
         'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
