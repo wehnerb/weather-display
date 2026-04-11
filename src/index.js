@@ -949,10 +949,8 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
     '<div class="hourly-strip">' + hourlyHtml + '</div>';
 
   const headExtra =
-    '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" ' +
-    'integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">' +
-    '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" ' +
-    'integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPcM=" crossorigin=""></script>';
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
 
   return buildHtmlDoc(width, height, styles,
     body + buildRadarScript(radarTimestamps),
@@ -976,10 +974,8 @@ function renderRadarOnly(radarTimestamps, alerts, layout, layoutKey) {
     '<div class="radar-wrap">' + radarHtml + '</div>';
 
   const headExtra =
-    '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" ' +
-    'integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">' +
-    '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" ' +
-    'integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPcM=" crossorigin=""></script>';
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
 
   return buildHtmlDoc(width, height, styles,
     body + buildRadarScript(radarTimestamps),
