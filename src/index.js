@@ -21,7 +21,7 @@
 //   Daily forecast      — NWS /gridpoints/FGF/65,57/forecast
 //   Hourly forecast     — NWS /gridpoints/FGF/65,57/forecast/hourly
 //   Active alerts       — NWS /alerts/active?zone=NDZ039
-//   AQI                 — EPA AirNow API (requires AIRNOW_API_KEY secret)
+//   AQI                 — EPA AirNow API (needs AIRNOW_API_KEY secret)
 //   Sunrise / Sunset    — Calculated mathematically (no API needed)
 //   Radar frame paths   — RainViewer public API (server-side; no auth required)
 //   Radar tiles         — RainViewer tile CDN (fetched client-side by Leaflet)
