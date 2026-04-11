@@ -21,9 +21,10 @@
 //   Daily forecast      — NWS /gridpoints/FGF/65,57/forecast
 //   Hourly forecast     — NWS /gridpoints/FGF/65,57/forecast/hourly
 //   Active alerts       — NWS /alerts/active?zone=NDZ039
-//   Radar frame times   — NOAA nowCOAST MapServer REST API
 //   AQI                 — EPA AirNow API (requires AIRNOW_API_KEY secret)
 //   Sunrise / Sunset    — Calculated mathematically (no API needed)
+//   Radar frame times   — NOAA nowCOAST MapServer REST API (fetched client-side;
+//                         NOAA blocks server-side / datacenter IP requests with 403)
 //   Radar tiles         — NOAA nowCOAST NEXRAD WMS (fetched client-side)
 //   Base map tiles      — OpenStreetMap via Leaflet CDN (fetched client-side)
 //
@@ -88,7 +89,6 @@ const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
 const NWS_ALERTS_TTL       =  120;   // active alerts (safety-critical; short TTL)
 const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
-const RADAR_TIMESTAMPS_TTL =   60;   // radar frame timestamps (updates every 4 min)
 
 // Layout pixel dimensions — must match all other station Workers exactly.
 const LAYOUTS = {
@@ -310,14 +310,16 @@ export default {
       const now = new Date();
 
       // Determine which data sources are needed for this layout+view combination.
-      // Avoid unnecessary fetches: radar-only views skip all weather data;
-      // conditions-only views skip radar timestamps.
+      // Radar-only views skip all weather data fetches.
       const needsWeather = !isSmall || viewKey === 'conditions';
-      const needsRadar   = !isSmall || viewKey === 'radar';
 
       // Fetch all required data in parallel to minimise total latency.
       // Unneeded fetches resolve immediately with null so the destructuring
       // pattern stays consistent regardless of layout.
+      // NOTE: Radar frame timestamps are no longer fetched server-side. NOAA's
+      // nowCOAST MapServer returns 403 for Cloudflare datacenter IP ranges.
+      // The client-side radar script fetches timestamps directly from the browser,
+      // where NOAA does not block requests.
       const [
         obsData,
         gridData,
@@ -325,15 +327,13 @@ export default {
         hourlyPeriods,
         alertFeatures,
         aqiData,
-        radarTimestamps,
       ] = await Promise.all([
         needsWeather ? fetchNwsObservations(env.NWS_USER_AGENT) : Promise.resolve(null),
         needsWeather ? fetchNwsGridData(env.NWS_USER_AGENT)     : Promise.resolve(null),
         needsWeather ? fetchNwsDaily(env.NWS_USER_AGENT)        : Promise.resolve(null),
         needsWeather ? fetchNwsHourly(env.NWS_USER_AGENT)       : Promise.resolve(null),
         fetchNwsAlerts(env.NWS_USER_AGENT),   // always fetched — alert banner on all views
-        needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY)        : Promise.resolve(null),
-        needsRadar   ? fetchRadarTimestamps(env.NWS_USER_AGENT)  : Promise.resolve(null),
+        needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY) : Promise.resolve(null),
       ]);
 
       // Process raw API responses into display-ready objects.
@@ -349,7 +349,7 @@ export default {
       // Render the appropriate HTML page for this layout+view.
       let html;
       if (isSmall && viewKey === 'radar') {
-        html = renderRadarOnly(radarTimestamps, alerts, layout, layoutKey);
+        html = renderRadarOnly(alerts, layout, layoutKey);
       } else if (isSmall && viewKey === 'conditions') {
         html = renderConditionsOnly(
           wx, apparent, daily, alerts, aqi, sunTimes, layout, layoutKey
@@ -357,8 +357,7 @@ export default {
       } else {
         // wide / full: render the full page with both panels and hourly strip.
         html = renderFullPage(
-          wx, apparent, daily, hourly, alerts, aqi, sunTimes,
-          radarTimestamps, layout, layoutKey
+          wx, apparent, daily, hourly, alerts, aqi, sunTimes, layout, layoutKey
         );
       }
 
@@ -541,47 +540,6 @@ async function fetchAirNowAqi(apiKey) {
     return null;
   }
 }
-
-// Fetches the list of available NOAA nowCOAST NEXRAD radar frame timestamps.
-// Queries the image footprints layer (layer 2) of the MapServer, which
-// contains the validtime attribute for each available radar mosaic.
-// Returns an array of ISO 8601 timestamp strings (ascending) or null on failure.
-// Timestamps are embedded in the rendered HTML so no client-side CORS fetch
-// is needed to discover them.
-async function fetchRadarTimestamps(userAgent) {
-  const url =
-    'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/' +
-    'radar_meteo_imagery_nexrad_time/MapServer/2/query' +
-    '?where=1%3D1&outFields=validtime&returnGeometry=false' +
-    '&orderByFields=validtime&f=json';
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': userAgent },
-      cf: { cacheTtl: RADAR_TIMESTAMPS_TTL },
-    });
-    if (!res.ok) {
-      console.error('Radar timestamp fetch failed (' + res.status + ')');
-      return null;
-    }
-    const data = await res.json();
-    if (!data.features || !data.features.length) return null;
-
-    // Extract Unix millisecond timestamps, remove nulls, sort ascending,
-    // take the last RADAR_FRAME_COUNT frames, convert to ISO 8601 strings.
-    const times = data.features
-      .map(function(f) { return f.attributes && f.attributes.validtime; })
-      .filter(function(t) { return t != null; })
-      .sort(function(a, b) { return a - b; })
-      .slice(-RADAR_FRAME_COUNT)
-      .map(function(t) { return new Date(t).toISOString(); });
-
-    return times.length > 0 ? times : null;
-  } catch (e) {
-    console.error('Radar timestamp error:', e);
-    return null;
-  }
-}
-
 
 // =============================================================================
 // DATA PROCESSING
@@ -921,7 +879,7 @@ function calcSunriseSunset(date, lat, lon) {
 // Contains: alert banners, radar panel (left), conditions panel (right),
 // hourly strip (bottom).
 function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
-                        sunTimes, radarTimestamps, layout, layoutKey) {
+                        sunTimes, layout, layoutKey) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
   const condWidth = CONDITIONS_WIDTH[layoutKey];
@@ -932,7 +890,7 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
   const scale = isFull ? 1.18 : 1.0;
 
   const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale);
-  const radarHtml    = buildRadarPanelHtml(radarTimestamps, radarWidth, scale);
+  const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
     wx, apparent, daily, alerts, aqi, sunTimes, condWidth, stripH, scale, isFull
   );
@@ -953,19 +911,19 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + buildRadarScript(radarTimestamps),
+    body + buildRadarScript(),
     headExtra
   );
 }
 
 // Renders a radar-only page for split/tri layouts with ?view=radar.
 // Contains: optional alert banner, full-width animated radar map.
-function renderRadarOnly(radarTimestamps, alerts, layout, layoutKey) {
+function renderRadarOnly(alerts, layout, layoutKey) {
   const { width, height } = layout;
   const scale = 1.0;
 
   const alertsHtml = buildAlertBannersHtml(alerts.active, width, scale);
-  const radarHtml  = buildRadarPanelHtml(radarTimestamps, width, scale);
+  const radarHtml  = buildRadarPanelHtml(width, scale);
 
   const styles = buildRadarOnlyStyles(width, height, scale);
 
@@ -978,7 +936,7 @@ function renderRadarOnly(radarTimestamps, alerts, layout, layoutKey) {
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + buildRadarScript(radarTimestamps),
+    body + buildRadarScript(),
     headExtra
   );
 }
@@ -1050,8 +1008,8 @@ function buildAlertBannersHtml(activeAlerts, width, scale) {
 }
 
 // Builds the HTML for the radar panel (map container + overlay elements).
-// The Leaflet map itself is initialised by the client-side script below.
-function buildRadarPanelHtml(radarTimestamps, panelWidth, scale) {
+// The Leaflet map and radar animation are initialised by the client-side script.
+function buildRadarPanelHtml(panelWidth, scale) {
   const legendFontSize = Math.round(10 * scale);
   const stampFontSize  = Math.round(11 * scale);
 
@@ -1334,96 +1292,136 @@ function buildForecastAlertBadge(futureAlerts, dateStr, scale) {
 }
 
 // Builds the client-side JavaScript block that initialises the Leaflet map
-// and runs the radar animation loop. Radar frame timestamps are embedded as
-// a JSON array so no additional client-side fetch is needed.
-function buildRadarScript(radarTimestamps) {
-  const times      = radarTimestamps || [];
-  const timesJson  = JSON.stringify(times);
-  const wmsUrl     = 'https://nowcoast.noaa.gov/arcgis/services/nowcoast/' +
-                     'radar_meteo_imagery_nexrad_time/MapServer/WMSServer';
+// and runs the radar animation loop.
+//
+// Timestamps are fetched client-side because NOAA nowCOAST's MapServer returns
+// 403 Forbidden for requests originating from Cloudflare datacenter IP ranges.
+// Browser requests from a real user IP are not blocked. The map initialises
+// immediately; radar frames begin animating once the timestamp fetch resolves
+// (~200–500 ms). If the fetch fails, the "Radar data unavailable" message is shown.
+function buildRadarScript() {
+  const timestampUrl =
+    'https://nowcoast.noaa.gov/arcgis/rest/services/nowcoast/' +
+    'radar_meteo_imagery_nexrad_time/MapServer/2/query' +
+    '?where=1%3D1&outFields=validtime&returnGeometry=false' +
+    '&orderByFields=validtime&f=json';
+
+  const wmsUrl =
+    'https://nowcoast.noaa.gov/arcgis/services/nowcoast/' +
+    'radar_meteo_imagery_nexrad_time/MapServer/WMSServer';
 
   return (
     '<script>' +
     // Configuration values embedded by the Worker at render time.
-    'var RADAR_LAT='     + LOCATION_LAT     + ';' +
-    'var RADAR_LON='     + LOCATION_LON     + ';' +
-    'var RADAR_ZOOM='    + RADAR_ZOOM       + ';' +
-    'var RADAR_OPACITY=' + RADAR_OPACITY    + ';' +
-    'var RADAR_FRAME_MS='+ RADAR_FRAME_MS   + ';' +
-    'var RADAR_HOLD_MS=' + RADAR_HOLD_MS    + ';' +
-    'var RADAR_TIMES='   + timesJson        + ';' +
-    'var WMS_URL="'      + wmsUrl           + '";' +
+    'var RADAR_LAT='        + LOCATION_LAT     + ';' +
+    'var RADAR_LON='        + LOCATION_LON     + ';' +
+    'var RADAR_ZOOM='       + RADAR_ZOOM       + ';' +
+    'var RADAR_OPACITY='    + RADAR_OPACITY    + ';' +
+    'var RADAR_FRAME_MS='   + RADAR_FRAME_MS   + ';' +
+    'var RADAR_HOLD_MS='    + RADAR_HOLD_MS    + ';' +
+    'var RADAR_FRAME_COUNT='+ RADAR_FRAME_COUNT+ ';' +
+    'var TIMESTAMPS_URL="'  + timestampUrl     + '";' +
+    'var WMS_URL="'         + wmsUrl           + '";' +
 
-    // Initialise the map and start the animation once the DOM is ready.
     'document.addEventListener("DOMContentLoaded",function(){' +
 
-      // Create the Leaflet map centred on Fargo.
-      'var map=L.map("radar-map",{center:[RADAR_LAT,RADAR_LON],' +
-        'zoom:RADAR_ZOOM,zoomControl:false,attributionControl:true});' +
-
-      // Add OpenStreetMap base tiles.
-      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",' +
-        '{attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors",' +
-        'maxZoom:18}).addTo(map);' +
-
-      // If no timestamps are available, show the fallback message.
-      'if(!RADAR_TIMES||RADAR_TIMES.length===0){' +
-        'var el=document.getElementById("radar-unavailable");' +
-        'if(el)el.style.display="flex";' +
-        'return;' +
-      '}' +
-
-      // Pre-create one Leaflet WMS tile layer per radar frame.
-      // Each layer has its specific TIME parameter baked in.
-      // Opacity starts at 0 (hidden); the animation loop reveals each frame.
-      // NOTE: Layer "0" is the NOAA NEXRAD MRMS Base Reflectivity Mosaic.
-      // If tiles do not appear, try changing "0" to "3" (the raw Image layer).
-      'var layers=RADAR_TIMES.map(function(t){' +
-        'return L.tileLayer.wms(WMS_URL,{' +
-          'layers:"0",' +
-          'format:"image/png",' +
-          'transparent:true,' +
-          'opacity:0,' +
-          'time:t' +
-        '});' +
+      // Create the Leaflet map centred on Fargo. All interaction is disabled —
+      // this is a passive display, not an interactive map.
+      'var map=L.map("radar-map",{' +
+        'center:[RADAR_LAT,RADAR_LON],' +
+        'zoom:RADAR_ZOOM,' +
+        'zoomControl:false,' +
+        'attributionControl:true,' +
+        'dragging:false,' +
+        'scrollWheelZoom:false,' +
+        'doubleClickZoom:false,' +
+        'touchZoom:false,' +
+        'keyboard:false' +
       '});' +
 
-      // Add all layers to the map. This triggers background tile pre-loading
-      // so subsequent frames render without visible delay.
-      'layers.forEach(function(l){l.addTo(map);});' +
+      // Add OpenStreetMap base tiles.
+      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{' +
+        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors · NOAA/NWS nowCOAST",' +
+        'maxZoom:18' +
+      '}).addTo(map);' +
 
-      'var frameIdx=0;' +
+      // References to overlay elements updated during animation.
       'var progressEl=document.getElementById("radar-progress");' +
       'var timeEl=document.getElementById("radar-time");' +
 
-      'function showFrame(){' +
-        // Show the current frame and hide all others.
-        'layers.forEach(function(l,i){' +
-          'l.setOpacity(i===frameIdx?RADAR_OPACITY:0);' +
-        '});' +
-
-        // Update the timestamp display in Central time.
-        'if(timeEl){' +
-          'var ts=new Date(RADAR_TIMES[frameIdx]);' +
-          'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
-            'timeZone:"America/Chicago",' +
-            'hour:"numeric",minute:"2-digit",hour12:true' +
-          '});' +
-        '}' +
-
-        // Update the loop progress bar.
-        'if(progressEl){' +
-          'progressEl.style.width=((frameIdx+1)/layers.length*100)+"%";' +
-        '}' +
-
-        // Advance to the next frame; hold longer on the most recent frame.
-        'var isLast=(frameIdx===layers.length-1);' +
-        'frameIdx=(frameIdx+1)%layers.length;' +
-        'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
+      // Shows the "Radar data unavailable" overlay.
+      'function showUnavailable(){' +
+        'var el=document.getElementById("radar-unavailable");' +
+        'if(el)el.style.display="flex";' +
       '}' +
 
-      // Start the animation loop.
-      'setTimeout(showFrame,RADAR_FRAME_MS);' +
+      // Starts the animation loop once timestamps and layers are ready.
+      'function startAnimation(layers,times){' +
+        'var frameIdx=0;' +
+        'function showFrame(){' +
+          // Reveal the current frame; hide all others by setting opacity to 0.
+          'layers.forEach(function(l,i){' +
+            'l.setOpacity(i===frameIdx?RADAR_OPACITY:0);' +
+          '});' +
+          // Update the timestamp display (Central time).
+          'if(timeEl){' +
+            'var ts=new Date(times[frameIdx]);' +
+            'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
+              'timeZone:"America/Chicago",' +
+              'hour:"numeric",minute:"2-digit",hour12:true' +
+            '});' +
+          '}' +
+          // Update the loop progress bar.
+          'if(progressEl){' +
+            'progressEl.style.width=((frameIdx+1)/layers.length*100)+"%";' +
+          '}' +
+          // Advance frame index; hold longer on the latest frame before looping.
+          'var isLast=(frameIdx===layers.length-1);' +
+          'frameIdx=(frameIdx+1)%layers.length;' +
+          'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
+        '}' +
+        'setTimeout(showFrame,RADAR_FRAME_MS);' +
+      '}' +
+
+      // Fetch radar frame timestamps from NOAA client-side.
+      // Browser requests are not blocked by NOAA's 403 restriction on datacenter IPs.
+      // NOTE: Layer "0" is the NOAA NEXRAD MRMS Base Reflectivity Mosaic.
+      // If tiles do not appear after a successful fetch, try changing "0" to "3".
+      'fetch(TIMESTAMPS_URL)' +
+        '.then(function(r){' +
+          'if(!r.ok)throw new Error("HTTP "+r.status);' +
+          'return r.json();' +
+        '})' +
+        '.then(function(data){' +
+          'if(!data.features||!data.features.length){showUnavailable();return;}' +
+
+          // Extract validtime (Unix ms), sort ascending, take the last N frames.
+          'var times=data.features' +
+            '.map(function(f){return f.attributes&&f.attributes.validtime;})' +
+            '.filter(function(t){return t!=null;})' +
+            '.sort(function(a,b){return a-b;})' +
+            '.slice(-RADAR_FRAME_COUNT)' +
+            '.map(function(t){return new Date(t).toISOString();});' +
+
+          'if(!times.length){showUnavailable();return;}' +
+
+          // Pre-create one WMS tile layer per frame. All start hidden (opacity 0).
+          // Adding them all immediately triggers background tile pre-loading so
+          // subsequent frames render without visible delay.
+          'var layers=times.map(function(t){' +
+            'return L.tileLayer.wms(WMS_URL,{' +
+              'layers:"0",' +
+              'format:"image/png",' +
+              'transparent:true,' +
+              'opacity:0,' +
+              'time:t' +
+            '});' +
+          '});' +
+          'layers.forEach(function(l){l.addTo(map);});' +
+          'startAnimation(layers,times);' +
+        '})' +
+        '.catch(function(){showUnavailable();});' +
+
     '});' +
     '</script>'
   );
