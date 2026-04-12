@@ -84,7 +84,7 @@ const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
 // Radar animation (client-side)
 const RADAR_FRAME_COUNT = 12;    // max number of radar frames to animate
 const RADAR_ZOOM        =  8;    // Leaflet zoom level (~75 mi radius); adjust after hardware test
-const RADAR_FRAME_MS    =  600;  // milliseconds per historical frame
+const RADAR_FRAME_MS    =  200;  // milliseconds per historical frame
 const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before looping
 const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
@@ -94,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =    6;   // increment to invalidate all cached pages
+const CACHE_VERSION        =    7;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
