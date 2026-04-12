@@ -94,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =    7;   // increment to invalidate all cached pages
+const CACHE_VERSION        =    8;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -951,7 +951,7 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
   );
   const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, scale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, stripH, scale);
+  const styles = buildFullPageStyles(width, height, condWidth, stripH, scale, isFull);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
@@ -1456,25 +1456,30 @@ function buildRadarScript(radarFrames) {
 // =============================================================================
 
 // Shared base styles used by all layout renderers.
-function baseStyles(width, height) {
+// isFull: true for the full (1920×1075) layout which fills the entire screen and
+// needs a solid background; false for all other layouts which are transparent so
+// the display hardware's charcoal texture shows through.
+function baseStyles(width, height, isFull) {
   return (
     '*, *::before, *::after{box-sizing:border-box;margin:0;padding:0;}' +
     'html,body{' +
       'width:' + width + 'px;height:' + height + 'px;' +
       'overflow:hidden;' +
-      'background:#0a0a0a;color:#e8eaec;' +
-      'font-family:"Helvetica Neue",Arial,Helvetica,sans-serif;' +
+      'background:' + (isFull ? '#111111' : 'transparent') + ';color:rgba(255,255,255,0.92);' +
+      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;' +
     '}' +
 
     // Alert banners — stacked above all content, colour-coded by severity.
+    // Base class provides layout and the surrounding white border; each severity
+    // class overrides only the background and left accent border colour.
     '.alerts{flex-shrink:0;}' +
     '.alert-banner{' +
       'display:flex;align-items:center;gap:12px;' +
-      'border-left:4px solid;overflow:hidden;' +
+      'border:1px solid rgba(255,255,255,0.10);overflow:hidden;' +
     '}' +
-    '.alert-warning {background:#7a0a0a;border-color:#ff3030;}' +
-    '.alert-watch   {background:#7a3800;border-color:#ff8000;}' +
-    '.alert-advisory{background:#4a4a00;border-color:#d4c000;}' +
+    '.alert-warning {background:rgba(50,0,0,0.55);border-left:4px solid #C8102E;}' +
+    '.alert-watch   {background:rgba(50,25,0,0.55);border-left:4px solid #d68910;}' +
+    '.alert-advisory{background:rgba(40,40,0,0.55);border-left:4px solid #b7950b;}' +
     '.alert-type{font-weight:700;letter-spacing:.06em;text-transform:uppercase;' +
       'white-space:nowrap;flex-shrink:0;}' +
     '.alert-divider{width:2px;height:16px;background:rgba(255,255,255,.2);flex-shrink:0;}' +
@@ -1482,14 +1487,14 @@ function baseStyles(width, height) {
     '.alert-until{margin-left:auto;white-space:nowrap;flex-shrink:0;' +
       'opacity:.75;padding-right:8px;}' +
 
-    // Radar panel
+    // Radar panel — dark background is appropriate for map legibility.
     '#radar-map{width:100%;height:100%;}' +
     '.radar-legend{' +
       'position:absolute;top:10px;left:10px;z-index:1000;' +
-      'background:rgba(10,10,10,.78);border:1px solid #2a2e32;' +
+      'background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.10);' +
       'border-radius:4px;padding:5px 8px;' +
     '}' +
-    '.legend-title{color:#8a9199;text-transform:uppercase;letter-spacing:.05em;' +
+    '.legend-title{color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;' +
       'margin-bottom:3px;}' +
     '.legend-bar{' +
       'height:8px;width:120px;border-radius:2px;' +
@@ -1497,7 +1502,7 @@ function baseStyles(width, height) {
         '#04e9e7 0%,#019ff4 12%,#0300f4 22%,#02fd02 34%,#01c501 45%,' +
         '#008e00 54%,#fdf802 63%,#e5bc00 72%,#fd9500 81%,#fd0000 90%,#a10000 100%);}' +
     '.legend-labels{display:flex;justify-content:space-between;width:120px;' +
-      'color:#8a9199;margin-top:2px;}' +
+      'color:rgba(255,255,255,0.55);margin-top:2px;}' +
     '.radar-stamp{' +
       'position:absolute;bottom:28px;left:10px;z-index:1000;' +
       'background:rgba(0,0,0,.6);padding:3px 7px;border-radius:3px;' +
@@ -1510,34 +1515,35 @@ function baseStyles(width, height) {
     '.loop-bar{position:absolute;bottom:0;left:0;right:0;height:4px;' +
       'background:rgba(255,255,255,.08);z-index:1000;}' +
     '.loop-bar-fill{height:100%;width:0;' +
-      'background:linear-gradient(90deg,#a01515,#cc1f1f);' +
+      'background:linear-gradient(90deg,#C8102E,#e03030);' +
       'border-radius:0 2px 2px 0;transition:width .2s ease;}' +
     '.radar-unavailable{' +
       'position:absolute;inset:0;z-index:999;' +
       'display:flex;align-items:center;justify-content:center;' +
-      'background:rgba(10,10,10,.85);color:#8a9199;' +
+      'background:rgba(0,0,0,0.75);color:rgba(255,255,255,0.55);' +
       'font-size:14px;letter-spacing:.05em;' +
     '}' +
 
-    // Conditions panel
+    // Conditions panel — white-tinted card surface on transparent background.
     '.cond-panel{' +
       'display:flex;flex-direction:column;overflow:hidden;' +
-      'background:#111416;border-left:1px solid #1e2428;' +
+      'background:rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.10);' +
     '}' +
+    // Section headers use FFD brand red — a functional label treatment, not decorative.
     '.sec-hdr{' +
-      'background:#b01818;' +
+      'background:#C8102E;' +
       'font-weight:700;letter-spacing:.1em;text-transform:uppercase;' +
       'flex-shrink:0;' +
     '}' +
     '.current-block{' +
       'display:flex;align-items:flex-start;gap:10px;' +
-      'background:#181c1f;flex-shrink:0;border-bottom:1px solid #1e2428;' +
+      'background:rgba(255,255,255,0.10);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.10);' +
     '}' +
     '.temp-side{flex:1;}' +
     '.temp-main{display:flex;align-items:flex-end;line-height:1;}' +
     '.temp-val{font-weight:600;color:#fff;}' +
-    '.temp-unit{color:#8a9199;margin-bottom:4px;margin-left:2px;}' +
-    '.feels{color:#8a9199;margin-top:4px;}' +
+    '.temp-unit{color:rgba(255,255,255,0.45);margin-bottom:4px;margin-left:2px;}' +
+    '.feels{color:rgba(255,255,255,0.68);margin-top:4px;}' +
     '.aqi-badge{' +
       'display:inline-block;padding:2px 7px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.05em;' +
@@ -1546,32 +1552,32 @@ function baseStyles(width, height) {
       'display:flex;flex-direction:column;align-items:center;gap:4px;' +
       'flex-shrink:0;' +
     '}' +
-    '.cond-text{color:#8a9199;text-align:center;text-transform:uppercase;' +
+    '.cond-text{color:rgba(255,255,255,0.68);text-align:center;text-transform:uppercase;' +
       'letter-spacing:.04em;}' +
 
     // Stats grid — 2-column grid, last row spans both columns
     '.stats-grid{' +
       'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid #1e2428;' +
+      'border-bottom:1px solid rgba(255,255,255,0.10);' +
     '}' +
     '.stat-cell{' +
-      'padding:6px 10px;border-bottom:1px solid #1e2428;' +
+      'padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.10);' +
     '}' +
-    '.stat-cell:nth-child(odd){border-right:1px solid #1e2428;}' +
+    '.stat-cell:nth-child(odd){border-right:1px solid rgba(255,255,255,0.10);}' +
     '.stat-span2{grid-column:span 2;border-right:none;}' +
-    '.stat-lbl{color:#8a9199;text-transform:uppercase;letter-spacing:.05em;}' +
-    '.stat-val{color:#e8eaec;margin-top:1px;white-space:nowrap;' +
+    '.stat-lbl{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.05em;}' +
+    '.stat-val{color:rgba(255,255,255,0.92);margin-top:1px;white-space:nowrap;' +
       'overflow:hidden;text-overflow:ellipsis;}' +
 
     // Sunrise / sunset row
     '.sun-row{' +
       'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid #1e2428;background:#181c1f;' +
+      'border-bottom:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.04);' +
     '}' +
     '.sun-cell{display:flex;align-items:center;gap:8px;padding:6px 10px;}' +
-    '.sun-cell:first-child{border-right:1px solid #1e2428;}' +
+    '.sun-cell:first-child{border-right:1px solid rgba(255,255,255,0.10);}' +
     '.sun-icon{font-size:18px;}' +
-    '.sun-lbl{color:#8a9199;text-transform:uppercase;letter-spacing:.05em;}' +
+    '.sun-lbl{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.05em;}' +
     '.sun-time{color:#f0c040;font-weight:600;}' +
 
     // 3-day forecast
@@ -1581,18 +1587,20 @@ function baseStyles(width, height) {
       'grid-template-columns:50px auto 1fr auto auto auto;' +
       'align-items:center;gap:6px;' +
       'padding:0 10px;' +
-      'border-bottom:1px solid #1e2428;min-height:0;' +
+      'border-bottom:1px solid rgba(255,255,255,0.10);min-height:0;' +
     '}' +
     '.fc-row:last-child{border-bottom:none;}' +
-    '.fc-row:nth-child(even){background:#181c1f;}' +
-    '.fc-day{font-weight:700;color:#cc1f1f;text-transform:uppercase;' +
+    '.fc-row:nth-child(even){background:rgba(255,255,255,0.04);}' +
+    // Day name in forecast rows — white, bold. The red section header above
+    // already provides the brand accent; repeating red here would be redundant.
+    '.fc-day{font-weight:700;color:rgba(255,255,255,0.92);text-transform:uppercase;' +
       'letter-spacing:.05em;}' +
     '.fc-icon{flex-shrink:0;}' +
-    '.fc-desc{color:#e8eaec;white-space:nowrap;overflow:hidden;' +
+    '.fc-desc{color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;' +
       'text-overflow:ellipsis;}' +
     '.fc-precip{color:#4db8ff;font-weight:600;white-space:nowrap;}' +
-    '.fc-temp{color:#e8eaec;font-weight:600;white-space:nowrap;text-align:right;}' +
-    '.fc-sep{color:#8a9199;margin:0 2px;}' +
+    '.fc-temp{color:rgba(255,255,255,0.92);font-weight:600;white-space:nowrap;text-align:right;}' +
+    '.fc-sep{color:rgba(255,255,255,0.38);margin:0 2px;}' +
     '.fc-badge{white-space:nowrap;}' +
     '.alert-badge{display:inline-block;padding:1px 5px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.04em;}' +
@@ -1600,30 +1608,31 @@ function baseStyles(width, height) {
     '.badge-watch   {background:#cc6000;color:#fff;}' +
     '.badge-advisory{background:#888800;color:#fff;}' +
 
-    // Hourly strip
+    // Hourly strip — white-tinted card, separated from main row by a slightly
+    // brighter border to give visual weight without a red accent bar.
     '.hourly-strip{' +
       'display:flex;flex-direction:row;align-items:stretch;' +
-      'border-top:1px solid #1e2428;background:#0e1214;flex-shrink:0;' +
+      'border-top:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);flex-shrink:0;' +
     '}' +
     '.hour-card{' +
       'flex:1;display:flex;flex-direction:column;align-items:center;' +
       'justify-content:center;gap:3px;' +
-      'border-right:1px solid #1e2428;padding:4px 0;' +
+      'border-right:1px solid rgba(255,255,255,0.10);padding:4px 0;' +
     '}' +
     '.hour-card:last-child{border-right:none;}' +
-    '.hour-time{color:#8a9199;text-transform:uppercase;letter-spacing:.04em;}' +
+    '.hour-time{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.04em;}' +
     '.hour-icon{flex-shrink:0;}' +
     '.hour-temp{color:#fff;font-weight:600;}' +
     '.hour-precip{color:#4db8ff;}' +
     '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
-      'color:#8a9199;font-size:12px;}'
+      'color:rgba(255,255,255,0.38);font-size:12px;}'
   );
 }
 
 // CSS for the wide / full layout (radar + conditions side by side + hourly strip).
-function buildFullPageStyles(width, height, condWidth, stripH, scale) {
+function buildFullPageStyles(width, height, condWidth, stripH, scale, isFull) {
   return (
-    baseStyles(width, height) +
+    baseStyles(width, height, isFull) +
     'body{display:flex;flex-direction:column;}' +
     '.main-row{flex:1;min-height:0;display:flex;flex-direction:row;}' +
     '.radar-panel{flex:1;min-width:0;position:relative;}' +
@@ -1635,7 +1644,7 @@ function buildFullPageStyles(width, height, condWidth, stripH, scale) {
 // CSS for split/tri radar-only layout.
 function buildRadarOnlyStyles(width, height, scale) {
   return (
-    baseStyles(width, height) +
+    baseStyles(width, height, false) +
     'body{display:flex;flex-direction:column;}' +
     '.radar-wrap{flex:1;min-height:0;position:relative;}'
   );
@@ -1644,7 +1653,7 @@ function buildRadarOnlyStyles(width, height, scale) {
 // CSS for split/tri conditions-only layout.
 function buildConditionsOnlyStyles(width, height, scale) {
   return (
-    baseStyles(width, height) +
+    baseStyles(width, height, false) +
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{flex:1;min-height:0;border-left:none;}'
   );
@@ -1667,8 +1676,8 @@ function renderErrorPage(message, layout) {
     '<title>FFD Weather</title>' +
     '<style>' +
     'html,body{width:' + width + 'px;height:' + height + 'px;margin:0;padding:0;' +
-      'overflow:hidden;background:#0a0a0a;color:#8a9199;' +
-      'font-family:Arial,sans-serif;font-size:' + fontSize + 'px;' +
+      'overflow:hidden;background:transparent;color:rgba(255,255,255,0.68);' +
+      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;font-size:' + fontSize + 'px;' +
       'display:flex;align-items:center;justify-content:center;text-align:center;}' +
     '</style></head>' +
     '<body>' + escapeHtml(message) + '</body></html>',
