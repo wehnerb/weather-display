@@ -121,6 +121,10 @@ const DEFAULT_LAYOUT     = 'wide';
 const DEFAULT_VIEW_SMALL = 'conditions';  // default ?view= for split/tri
 const ERROR_RETRY_SECONDS = 60;
 
+// Background color used when ?bg=dark is set.
+// Matches the probationary-firefighter-display dark testing background.
+const DARK_BG_COLOR = '#111111';
+
 
 // =============================================================================
 // SVG WEATHER ICONS — precomputed at module load (zero cost per request)
@@ -307,16 +311,24 @@ export default {
     // Treat any value other than 'conditions' as 'radar'.
     const viewKey     = (viewParam === 'conditions') ? 'conditions' : 'radar';
 
+    // ?bg=dark renders with a solid dark background for browser-based testing.
+    // Matches the probationary-firefighter-display ?bg=dark parameter behaviour.
+    const darkBg = sanitizeParam(url.searchParams.get('bg')) === 'dark';
+
     // Build a versioned cache key that incorporates layout and (for small
     // layouts) the view. Wide/full always render both components, so view
     // is not part of their cache key.
+    // ?bg=dark requests bypass the cache entirely — they are for testing only
+    // and should not pollute the production cache or receive stale pages.
     const cacheKeyUrl = 'https://weather-display-cache.internal/v' + CACHE_VERSION +
       '/' + layoutKey + (isSmall ? '-' + viewKey : '');
     const cache    = caches.default;
     const cacheReq = new Request(cacheKeyUrl, { method: 'GET' });
 
-    const cached = await cache.match(cacheReq);
-    if (cached) return cached;
+    if (!darkBg) {
+      const cached = await cache.match(cacheReq);
+      if (cached) return cached;
+    }
 
     try {
       const now = new Date();
@@ -358,15 +370,15 @@ export default {
 
       let html;
       if (isSmall && viewKey === 'radar') {
-        html = renderRadarOnly(radarFrames, alerts, layout, layoutKey);
+        html = renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg);
       } else if (isSmall && viewKey === 'conditions') {
         html = renderConditionsOnly(
-          wx, apparent, daily, alerts, aqi, sunTimes, layout, layoutKey
+          wx, apparent, daily, alerts, aqi, sunTimes, layout, layoutKey, darkBg
         );
       } else {
         html = renderFullPage(
           wx, apparent, daily, hourly, alerts, aqi, sunTimes,
-          radarFrames, layout, layoutKey
+          radarFrames, layout, layoutKey, darkBg
         );
       }
 
@@ -382,24 +394,24 @@ export default {
         },
       });
 
-      // Store a separately-headered copy in the Workers Cache API.
-      // The public max-age here controls the Worker cache TTL only and does
-      // NOT reach the display browser (which sees no-store above).
-      const toCache = new Response(html, {
-        status: 200,
-        headers: {
-          'Content-Type':           'text/html; charset=utf-8',
-          'Cache-Control':          'public, max-age=' + CACHE_SECONDS,
-          'X-Content-Type-Options': 'nosniff',
-        },
-      });
-      await cache.put(cacheReq, toCache);
+      // Only write to the Workers Cache when not in dark-bg testing mode.
+      if (!darkBg) {
+        const toCache = new Response(html, {
+          status: 200,
+          headers: {
+            'Content-Type':           'text/html; charset=utf-8',
+            'Cache-Control':          'public, max-age=' + CACHE_SECONDS,
+            'X-Content-Type-Options': 'nosniff',
+          },
+        });
+        await cache.put(cacheReq, toCache);
+      }
 
       return response;
 
     } catch (err) {
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('A system error occurred. Retrying shortly.', layout);
+      return renderErrorPage('A system error occurred. Retrying shortly.', layout, darkBg);
     }
   },
 };
@@ -935,7 +947,7 @@ function calcSunriseSunset(date, lat, lon) {
 // Contains: alert banners, radar panel (left), conditions panel (right),
 // hourly strip (bottom).
 function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
-                        sunTimes, radarFrames, layout, layoutKey) {
+                        sunTimes, radarFrames, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
   const condWidth = CONDITIONS_WIDTH[layoutKey];
@@ -951,7 +963,7 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
   );
   const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, scale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, stripH, scale, isFull);
+  const styles = buildFullPageStyles(width, height, condWidth, stripH, scale, isFull || darkBg);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
@@ -973,14 +985,14 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
 
 // Renders a radar-only page for split/tri layouts with ?view=radar.
 // Contains: optional alert banner, full-width animated radar map.
-function renderRadarOnly(radarFrames, alerts, layout, layoutKey) {
+function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = 1.0;
 
   const alertsHtml = buildAlertBannersHtml(alerts.active, width, scale);
   const radarHtml  = buildRadarPanelHtml(width, scale);
 
-  const styles = buildRadarOnlyStyles(width, height, scale);
+  const styles = buildRadarOnlyStyles(width, height, scale, darkBg);
 
   const body =
     '<div class="alerts">' + alertsHtml + '</div>' +
@@ -1000,7 +1012,7 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey) {
 // Contains: alert banners, current conditions, stats, sunrise/sunset, 3-day forecast.
 // No hourly strip (too narrow for split/tri widths).
 function renderConditionsOnly(wx, apparent, daily, alerts, aqi,
-                               sunTimes, layout, layoutKey) {
+                               sunTimes, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
@@ -1009,7 +1021,7 @@ function renderConditionsOnly(wx, apparent, daily, alerts, aqi,
     wx, apparent, daily, alerts, aqi, sunTimes, width, 0, scale, false
   );
 
-  const styles = buildConditionsOnlyStyles(width, height, scale);
+  const styles = buildConditionsOnlyStyles(width, height, scale, darkBg);
 
   const body =
     '<div class="alerts">'    + alertsHtml + '</div>' +
@@ -1456,16 +1468,16 @@ function buildRadarScript(radarFrames) {
 // =============================================================================
 
 // Shared base styles used by all layout renderers.
-// isFull: true for the full (1920×1075) layout which fills the entire screen and
-// needs a solid background; false for all other layouts which are transparent so
-// the display hardware's charcoal texture shows through.
-function baseStyles(width, height, isFull) {
+// useSolidBg: true when the full layout is active OR when ?bg=dark is set.
+// In both cases a solid dark background is rendered; otherwise transparent
+// so the display hardware's charcoal texture shows through.
+function baseStyles(width, height, useSolidBg) {
   return (
     '*, *::before, *::after{box-sizing:border-box;margin:0;padding:0;}' +
     'html,body{' +
       'width:' + width + 'px;height:' + height + 'px;' +
       'overflow:hidden;' +
-      'background:' + (isFull ? '#111111' : 'transparent') + ';color:rgba(255,255,255,0.92);' +
+      'background:' + (useSolidBg ? DARK_BG_COLOR : 'transparent') + ';color:rgba(255,255,255,0.92);' +
       'font-family:"Segoe UI",Arial,Helvetica,sans-serif;' +
     '}' +
 
@@ -1630,9 +1642,9 @@ function baseStyles(width, height, isFull) {
 }
 
 // CSS for the wide / full layout (radar + conditions side by side + hourly strip).
-function buildFullPageStyles(width, height, condWidth, stripH, scale, isFull) {
+function buildFullPageStyles(width, height, condWidth, stripH, scale, useSolidBg) {
   return (
-    baseStyles(width, height, isFull) +
+    baseStyles(width, height, useSolidBg) +
     'body{display:flex;flex-direction:column;}' +
     '.main-row{flex:1;min-height:0;display:flex;flex-direction:row;}' +
     '.radar-panel{flex:1;min-width:0;position:relative;}' +
@@ -1642,18 +1654,18 @@ function buildFullPageStyles(width, height, condWidth, stripH, scale, isFull) {
 }
 
 // CSS for split/tri radar-only layout.
-function buildRadarOnlyStyles(width, height, scale) {
+function buildRadarOnlyStyles(width, height, scale, darkBg) {
   return (
-    baseStyles(width, height, false) +
+    baseStyles(width, height, darkBg) +
     'body{display:flex;flex-direction:column;}' +
     '.radar-wrap{flex:1;min-height:0;position:relative;}'
   );
 }
 
 // CSS for split/tri conditions-only layout.
-function buildConditionsOnlyStyles(width, height, scale) {
+function buildConditionsOnlyStyles(width, height, scale, darkBg) {
   return (
-    baseStyles(width, height, false) +
+    baseStyles(width, height, darkBg) +
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{flex:1;min-height:0;border-left:none;}'
   );
@@ -1664,7 +1676,7 @@ function buildConditionsOnlyStyles(width, height, scale) {
 // ERROR PAGE
 // =============================================================================
 
-function renderErrorPage(message, layout) {
+function renderErrorPage(message, layout, darkBg) {
   const { width, height } = layout;
   const fontSize = Math.floor(Math.min(width, height) * 0.022);
 
@@ -1676,7 +1688,7 @@ function renderErrorPage(message, layout) {
     '<title>FFD Weather</title>' +
     '<style>' +
     'html,body{width:' + width + 'px;height:' + height + 'px;margin:0;padding:0;' +
-      'overflow:hidden;background:transparent;color:rgba(255,255,255,0.68);' +
+      'overflow:hidden;background:' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';color:rgba(255,255,255,0.68);' +
       'font-family:"Segoe UI",Arial,Helvetica,sans-serif;font-size:' + fontSize + 'px;' +
       'display:flex;align-items:center;justify-content:center;text-align:center;}' +
     '</style></head>' +
