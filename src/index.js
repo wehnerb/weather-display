@@ -621,7 +621,7 @@ async function fetchRainViewerFrames() {
 //   temperature, dewpoint, windChill, heatIndex: wmoUnit:degC → °F
 //   windSpeed, windGust:  wmoUnit:km_h-1 → mph
 //   windDirection:        wmoUnit:degree_(angle) (degrees, 0–360)
-//   barometricPressure:   wmoUnit:Pa → mb (hPa)
+//   barometricPressure:   wmoUnit:Pa → inHg
 //   visibility:           wmoUnit:m → miles
 //   relativeHumidity:     wmoUnit:percent (already %)
 function processObservations(props) {
@@ -637,7 +637,7 @@ function processObservations(props) {
   result.windDir    = degreesToCardinal(props.windDirection && props.windDirection.value);
   result.windSpeed  = nwsKmhToMph(props.windSpeed);
   result.windGust   = nwsKmhToMph(props.windGust);
-  result.pressure   = nwsPaToMb(props.barometricPressure);
+  result.pressure   = nwsPaToInHg(props.barometricPressure);
   result.visibility = nwsMToMi(props.visibility);
   result.humidity   = props.relativeHumidity ? Math.round(props.relativeHumidity.value) : null;
   result.condition  = props.textDescription  || null;
@@ -1188,7 +1188,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
     ? wx.humidity + '%' + (wx.dewpoint !== null ? ' · Dew ' + wx.dewpoint + '°F' : '')
     : '--';
 
-  const pressVal  = wx.pressure   !== null ? wx.pressure   + ' mb' : '--';
+  const pressVal  = wx.pressure !== null ? wx.pressure + ' inHg' : '--';
   const visVal    = wx.visibility !== null ? wx.visibility + ' mi' : '--';
 
   // Hi/Lo from the daily forecast periods (first daytime = high, first night = low).
@@ -1783,10 +1783,10 @@ function nwsKmhToMph(valueObj) {
   return Math.round(valueObj.value * 0.6214);
 }
 
-// Converts a NWS pressure value object (Pa) to mb (hPa), rounded to integer.
-function nwsPaToMb(valueObj) {
+// Converts a NWS pressure value object (Pa) to inHg, rounded to two decimal places.
+function nwsPaToInHg(valueObj) {
   if (!valueObj || valueObj.value === null || valueObj.value === undefined) return null;
-  return Math.round(valueObj.value / 100);
+  return Math.round(valueObj.value / 3386.389 * 100) / 100;
 }
 
 // Converts a NWS visibility value object (metres) to miles, one decimal place.
