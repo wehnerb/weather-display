@@ -82,7 +82,7 @@ const FORECAST_DAYS  = 3;    // number of days in the 3-day forecast
 const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
 
 // Radar animation (client-side)
-const RADAR_FRAME_COUNT = 12;    // max number of radar frames to animate
+const RADAR_FRAME_COUNT = 18;    // max number of radar frames to animate
 const RADAR_ZOOM        =  8;    // Leaflet zoom level (~75 mi radius); adjust after hardware test
 const RADAR_FRAME_MS    =  200;  // milliseconds per historical frame
 const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before looping
@@ -94,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =    8;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   11;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -232,11 +232,15 @@ function _buildIconSet(s) {
     '<line x1="6"  y1="20" x2="18" y2="20" stroke="#b0c4d4" stroke-width="2"   stroke-linecap="round"/>' +
     cl;
 
-  // Wind: three curved horizontal lines
+  // Wind: three horizontal lines of decreasing length with curled ends,
+  // suggesting airflow. Replaces the previous curved streamlines design.
   const WIND = op +
-    '<path d="M2 8 Q10 8 14 4 a4 4 0 0 1 4 4 a4 4 0 0 1-4 4 H2" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M2 14 Q8 14 11 11 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3 H2" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
-    '<line x1="2" y1="19" x2="16" y2="19" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="6"  x2="16" y2="6"  stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="12" x2="21" y2="12" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="18" x2="13" y2="18" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M16 3 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M21 9 a3 3 0 0 1 0 6" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M13 15 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
     cl;
 
   // Thunderstorm: dark cloud + lightning bolt
@@ -678,11 +682,14 @@ function parsePTHours(str) {
 }
 
 // Builds the 3-day forecast array from NWS daily forecast periods.
-// Each element: { dateStr, dayName, high, low, precip, shortForecast, hasBadge }
-// hasBadge and badgeAlerts are populated later by processAlerts.
-// Daytime periods supply the high temp and condition; nighttime supply the low.
+// Each element: { dateStr, dayName, high, low, precip, shortForecast,
+//                 windSpeed, windDir }
+// Daytime periods supply the high temp, condition, and wind forecast;
+// nighttime periods supply the low temp.
+// windSpeed is a pre-formatted NWS string (e.g. "10 to 20 mph" or "15 mph").
+// windDir is a NWS cardinal string (e.g. "NW"). Both are display-ready as-is.
 // Edge case: if only a nighttime period exists for a date (daytime already
-// passed), high is null and only the low is shown.
+// passed), high is null, only the low is shown, and wind is omitted.
 function buildDailyForecast(periods, count) {
   if (!periods) return [];
 
@@ -700,6 +707,8 @@ function buildDailyForecast(periods, count) {
         low:           null,
         precip:        null,
         shortForecast: null,
+        windSpeed:     null,   // NWS pre-formatted string, e.g. "10 to 20 mph"
+        windDir:       null,   // NWS cardinal string, e.g. "NW"
       };
     }
 
@@ -712,6 +721,10 @@ function buildDailyForecast(periods, count) {
       map[dateStr].high          = p.temperature;
       map[dateStr].shortForecast = p.shortForecast;
       map[dateStr].precip        = precip;
+      // Wind forecast from daytime period only — most actionable for display.
+      // NWS provides these as ready-to-display strings; no conversion needed.
+      map[dateStr].windSpeed     = p.windSpeed     || null;
+      map[dateStr].windDir       = p.windDirection || null;
     } else {
       map[dateStr].low = p.temperature;
       // Use nighttime condition only when no daytime period exists for this date.
@@ -1095,7 +1108,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
     '<div class="radar-stamp" style="font-size:' + stampFontSize + 'px;">' +
       'RADAR · <span id="radar-time">--:-- --</span> CDT' +
     '</div>' +
-    '<div class="radar-credit">© OpenStreetMap · RainViewer</div>';
+    '<div class="radar-credit">© OpenStreetMap/CARTO · RainViewer</div>';
 
   // Thin progress bar along the very bottom of the map showing loop position.
   const progressHtml =
@@ -1133,6 +1146,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
   const fcDayFont  = Math.round(13 * scale);
   const fcDescFont = Math.round(12 * scale);
   const fcTempFont = Math.round(13 * scale);
+  const fcWindFont = Math.round(10 * scale);   // wind line below condition description
   const pad        = Math.round(10 * scale);
   const hdrPad     = Math.round(6  * scale);
 
@@ -1260,14 +1274,29 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
     // Check whether any future alert overlaps this forecast date.
     const badgeHtml = buildForecastAlertBadge(alerts.future, day.dateStr, scale);
 
+    // Build wind line from daytime NWS fields — omitted silently if unavailable.
+    // NWS windDirection is a cardinal string (e.g. "NW") and windSpeed is a
+    // pre-formatted string (e.g. "10 to 20 mph"). "Wind:" label added for clarity.
+    const windLine = (day.windDir || day.windSpeed)
+      ? 'Wind: ' + escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
+      : '';
+
     forecastRowsHtml +=
       '<div class="fc-row">' +
         '<div class="fc-day" style="font-size:' + fcDayFont + 'px;">' +
           escapeHtml(day.dayName) +
         '</div>' +
         '<div class="fc-icon">' + icon + '</div>' +
-        '<div class="fc-desc" style="font-size:' + fcDescFont + 'px;">' +
-          escapeHtml(day.shortForecast || '') +
+        '<div class="fc-desc">' +
+          '<div class="fc-desc-text" style="font-size:' + fcDescFont + 'px;">' +
+            escapeHtml(day.shortForecast || '') +
+          '</div>' +
+          (windLine
+            ? '<div class="fc-wind" style="font-size:' + fcWindFont + 'px;">' +
+                windLine +
+              '</div>'
+            : ''
+          ) +
         '</div>' +
         (precip
           ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">💧 ' +
@@ -1406,10 +1435,14 @@ function buildRadarScript(radarFrames) {
         'keyboard:false' +
       '});' +
 
-      // OpenStreetMap base tiles (256px, no zoomOffset needed).
-      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{' +
-        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors",' +
-        'maxZoom:18' +
+      // CartoDB Dark Matter base tiles — near-black background with subtle grey
+      // road and label detail. Improves radar colour legibility on dark station
+      // displays compared to the default light OSM tiles. Free tier; no API key
+      // required. Attribution covers both OSM data and CARTO styling.
+      // {r} enables retina/HiDPI tiles automatically where supported.
+      'L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
+        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors © <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
+        'maxZoom:19' +
       '}).addTo(map);' +
 
       // Show fallback message if server-side frame fetch failed.
@@ -1608,8 +1641,13 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-day{font-weight:700;color:rgba(255,255,255,0.92);text-transform:uppercase;' +
       'letter-spacing:.05em;}' +
     '.fc-icon{flex-shrink:0;}' +
-    '.fc-desc{color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;' +
+    // fc-desc is a flex column: condition text on top, wind line below.
+    '.fc-desc{display:flex;flex-direction:column;justify-content:center;' +
+      'overflow:hidden;min-width:0;}' +
+    '.fc-desc-text{color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;' +
       'text-overflow:ellipsis;}' +
+    '.fc-wind{color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;' +
+      'text-overflow:ellipsis;margin-top:2px;}' +
     '.fc-precip{color:#4db8ff;font-weight:600;white-space:nowrap;}' +
     '.fc-temp{color:rgba(255,255,255,0.92);font-weight:600;white-space:nowrap;text-align:right;}' +
     '.fc-sep{color:rgba(255,255,255,0.38);margin:0 2px;}' +
