@@ -94,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =    8;   // increment to invalidate all cached pages
+const CACHE_VERSION        =    9;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -1095,7 +1095,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
     '<div class="radar-stamp" style="font-size:' + stampFontSize + 'px;">' +
       'RADAR · <span id="radar-time">--:-- --</span> CDT' +
     '</div>' +
-    '<div class="radar-credit">© OpenStreetMap · RainViewer</div>';
+    '<div class="radar-credit">© OpenStreetMap/CARTO · RainViewer</div>';
 
   // Thin progress bar along the very bottom of the map showing loop position.
   const progressHtml =
@@ -1406,10 +1406,14 @@ function buildRadarScript(radarFrames) {
         'keyboard:false' +
       '});' +
 
-      // OpenStreetMap base tiles (256px, no zoomOffset needed).
-      'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{' +
-        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors",' +
-        'maxZoom:18' +
+      // CartoDB Dark Matter base tiles — near-black background with subtle grey
+      // road and label detail. Improves radar colour legibility on dark station
+      // displays compared to the default light OSM tiles. Free tier; no API key
+      // required. Attribution covers both OSM data and CARTO styling.
+      // {r} enables retina/HiDPI tiles automatically where supported.
+      'L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
+        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors © <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
+        'maxZoom:19' +
       '}).addTo(map);' +
 
       // Show fallback message if server-side frame fetch failed.
