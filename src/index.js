@@ -411,7 +411,7 @@ export default {
 
     } catch (err) {
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('A system error occurred. Retrying shortly.', layout, darkBg);
+      return renderErrorPage('WEATHER UNAVAILABLE', 'Retrying shortly', layout, darkBg);
     }
   },
 };
@@ -621,7 +621,7 @@ async function fetchRainViewerFrames() {
 //   temperature, dewpoint, windChill, heatIndex: wmoUnit:degC → °F
 //   windSpeed, windGust:  wmoUnit:km_h-1 → mph
 //   windDirection:        wmoUnit:degree_(angle) (degrees, 0–360)
-//   barometricPressure:   wmoUnit:Pa → inHg
+//   barometricPressure:   wmoUnit:Pa → mb (hPa)
 //   visibility:           wmoUnit:m → miles
 //   relativeHumidity:     wmoUnit:percent (already %)
 function processObservations(props) {
@@ -637,7 +637,7 @@ function processObservations(props) {
   result.windDir    = degreesToCardinal(props.windDirection && props.windDirection.value);
   result.windSpeed  = nwsKmhToMph(props.windSpeed);
   result.windGust   = nwsKmhToMph(props.windGust);
-  result.pressure   = nwsPaToInHg(props.barometricPressure);
+  result.pressure   = nwsPaToMb(props.barometricPressure);
   result.visibility = nwsMToMi(props.visibility);
   result.humidity   = props.relativeHumidity ? Math.round(props.relativeHumidity.value) : null;
   result.condition  = props.textDescription  || null;
@@ -1188,7 +1188,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
     ? wx.humidity + '%' + (wx.dewpoint !== null ? ' · Dew ' + wx.dewpoint + '°F' : '')
     : '--';
 
-  const pressVal  = wx.pressure !== null ? wx.pressure + ' inHg' : '--';
+  const pressVal  = wx.pressure   !== null ? wx.pressure   + ' mb' : '--';
   const visVal    = wx.visibility !== null ? wx.visibility + ' mi' : '--';
 
   // Hi/Lo from the daily forecast periods (first daytime = high, first night = low).
@@ -1676,9 +1676,10 @@ function buildConditionsOnlyStyles(width, height, scale, darkBg) {
 // ERROR PAGE
 // =============================================================================
 
-function renderErrorPage(message, layout, darkBg) {
+function renderErrorPage(title, subtitle, layout, darkBg) {
   const { width, height } = layout;
-  const fontSize = Math.floor(Math.min(width, height) * 0.022);
+  const titleFont = Math.floor(Math.min(width, height) * 0.030);
+  const subFont   = Math.floor(Math.min(width, height) * 0.020);
 
   return new Response(
     '<!DOCTYPE html>' +
@@ -1687,12 +1688,21 @@ function renderErrorPage(message, layout, darkBg) {
     '<meta http-equiv="refresh" content="' + ERROR_RETRY_SECONDS + '">' +
     '<title>FFD Weather</title>' +
     '<style>' +
-    'html,body{width:' + width + 'px;height:' + height + 'px;margin:0;padding:0;' +
-      'overflow:hidden;background:' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';color:rgba(255,255,255,0.68);' +
-      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;font-size:' + fontSize + 'px;' +
-      'display:flex;align-items:center;justify-content:center;text-align:center;}' +
+    '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}' +
+    'html,body{width:' + width + 'px;height:' + height + 'px;overflow:hidden;' +
+      'background:' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
+      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;' +
+      'display:flex;align-items:center;justify-content:center;}' +
+    '.err-wrap{display:flex;flex-direction:column;align-items:center;gap:' + Math.floor(subFont * 0.6) + 'px;text-align:center;}' +
+    '.err-title{font-size:' + titleFont + 'px;font-weight:700;color:rgba(255,255,255,0.92);letter-spacing:.06em;}' +
+    '.err-sub{font-size:'   + subFont   + 'px;color:rgba(255,255,255,0.55);}' +
     '</style></head>' +
-    '<body>' + escapeHtml(message) + '</body></html>',
+    '<body>' +
+    '<div class="err-wrap">' +
+    '<div class="err-title">' + escapeHtml(title)    + '</div>' +
+    '<div class="err-sub">'   + escapeHtml(subtitle) + '</div>' +
+    '</div>' +
+    '</body></html>',
     {
       status: 200,
       headers: {
@@ -1783,10 +1793,10 @@ function nwsKmhToMph(valueObj) {
   return Math.round(valueObj.value * 0.6214);
 }
 
-// Converts a NWS pressure value object (Pa) to inHg, rounded to two decimal places.
-function nwsPaToInHg(valueObj) {
+// Converts a NWS pressure value object (Pa) to mb (hPa), rounded to integer.
+function nwsPaToMb(valueObj) {
   if (!valueObj || valueObj.value === null || valueObj.value === undefined) return null;
-  return Math.round(valueObj.value / 3386.389 * 100) / 100;
+  return Math.round(valueObj.value / 100);
 }
 
 // Converts a NWS visibility value object (metres) to miles, one decimal place.
