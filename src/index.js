@@ -94,7 +94,7 @@ const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   10;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   11;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -232,11 +232,15 @@ function _buildIconSet(s) {
     '<line x1="6"  y1="20" x2="18" y2="20" stroke="#b0c4d4" stroke-width="2"   stroke-linecap="round"/>' +
     cl;
 
-  // Wind: three curved horizontal lines
+  // Wind: three horizontal lines of decreasing length with curled ends,
+  // suggesting airflow. Replaces the previous curved streamlines design.
   const WIND = op +
-    '<path d="M2 8 Q10 8 14 4 a4 4 0 0 1 4 4 a4 4 0 0 1-4 4 H2" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M2 14 Q8 14 11 11 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3 H2" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
-    '<line x1="2" y1="19" x2="16" y2="19" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="6"  x2="16" y2="6"  stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="12" x2="21" y2="12" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<line x1="3"  y1="18" x2="13" y2="18" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M16 3 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M21 9 a3 3 0 0 1 0 6" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
+    '<path d="M13 15 a3 3 0 0 1 3 3 a3 3 0 0 1-3 3" fill="none" stroke="#b0c4d4" stroke-width="2" stroke-linecap="round"/>' +
     cl;
 
   // Thunderstorm: dark cloud + lightning bolt
@@ -1272,9 +1276,9 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
 
     // Build wind line from daytime NWS fields — omitted silently if unavailable.
     // NWS windDirection is a cardinal string (e.g. "NW") and windSpeed is a
-    // pre-formatted string (e.g. "10 to 20 mph"). Joined with a space if both present.
+    // pre-formatted string (e.g. "10 to 20 mph"). "Wind:" label added for clarity.
     const windLine = (day.windDir || day.windSpeed)
-      ? escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
+      ? 'Wind: ' + escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
       : '';
 
     forecastRowsHtml +=
