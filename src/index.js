@@ -82,7 +82,7 @@ const FORECAST_DAYS  = 3;    // number of days in the 3-day forecast
 const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
 
 // Radar animation (client-side)
-const RADAR_FRAME_COUNT = 12;    // max number of radar frames to animate
+const RADAR_FRAME_COUNT = 18;    // max number of radar frames to animate
 const RADAR_ZOOM        =  8;    // Leaflet zoom level (~75 mi radius); adjust after hardware test
 const RADAR_FRAME_MS    =  200;  // milliseconds per historical frame
 const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before looping
