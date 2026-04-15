@@ -1050,38 +1050,36 @@ function renderConditionsOnly(wx, apparent, daily, alerts, aqi,
 
 // Builds the HTML for stacked active alert banners.
 // Returns an empty string if there are no active alerts.
+// Format matches calendar-display: "⚠ EVENT NAME — until Day H:MM AM"
+// The NWS p.headline field is intentionally omitted — it contains the full
+// "issued [date] at [time] by NWS [office]" string which overflows the banner.
 function buildAlertBannersHtml(activeAlerts, width, scale) {
   if (!activeAlerts || activeAlerts.length === 0) return '';
 
-  const fontSize  = Math.round(18 * scale);
-  const typeSize  = Math.round(17 * scale);
-  const padV      = Math.round(9  * scale);
-  const padH      = Math.round(16 * scale);
+  const fontSize = Math.round(18 * scale);
+  const padV     = Math.round(9  * scale);
+  const padH     = Math.round(16 * scale);
 
   let html = '';
   for (const p of activeAlerts) {
-    const cls     = alertSeverityClass(p.severity);
-    const event   = escapeHtml(p.event || 'Weather Alert');
-    const headline = escapeHtml(
-      (p.headline || p.description || '').replace(/\n/g, ' ').substring(0, 200)
-    );
+    const cls = alertSeverityClass(p.severity);
 
     // Use p.ends (actual event end) in preference to p.expires (product expiry)
     // for the "until" time, consistent with the calendar-display alert pattern.
     const endDate = p.ends ? new Date(p.ends) : (p.expires ? new Date(p.expires) : null);
-    const untilStr = endDate ? 'Until ' + formatShortAlertTime(endDate) : '';
+
+    // Build the banner text as a single string: "⚠ EVENT — until Day H:MM AM"
+    // Matches the calendar-display alert format — no headline body text.
+    const txt = '\u26A0 ' +
+      (p.event || 'Weather Alert') +
+      (endDate ? ' \u2014 until ' + formatShortAlertTime(endDate) : '');
 
     html +=
       '<div class="alert-banner ' + cls + '" style="' +
         'padding:' + padV + 'px ' + padH + 'px;' +
         'font-size:' + fontSize + 'px;' +
       '">' +
-        '<span class="alert-type" style="font-size:' + typeSize + 'px;">' +
-          '⚠ ' + event +
-        '</span>' +
-        '<span class="alert-divider"></span>' +
-        '<span class="alert-text">' + headline + '</span>' +
-        (untilStr ? '<span class="alert-until">' + escapeHtml(untilStr) + '</span>' : '') +
+        escapeHtml(txt) +
       '</div>';
   }
   return html;
@@ -1515,22 +1513,17 @@ function baseStyles(width, height, useSolidBg) {
     '}' +
 
     // Alert banners — stacked above all content, colour-coded by severity.
-    // Base class provides layout and the surrounding white border; each severity
-    // class overrides only the background and left accent border colour.
+    // Plain text layout (no flex sub-elements) matches the calendar-display banner.
     '.alerts{flex-shrink:0;}' +
     '.alert-banner{' +
-      'display:flex;align-items:center;gap:12px;' +
-      'border:1px solid rgba(255,255,255,0.10);overflow:hidden;' +
+      'border-radius:4px;' +
+      'border:1px solid rgba(255,255,255,0.10);' +
+      'font-weight:700;' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
     '}' +
-    '.alert-warning {background:rgba(50,0,0,0.55);border-left:4px solid #C8102E;}' +
-    '.alert-watch   {background:rgba(50,25,0,0.55);border-left:4px solid #d68910;}' +
-    '.alert-advisory{background:rgba(40,40,0,0.55);border-left:4px solid #b7950b;}' +
-    '.alert-type{font-weight:700;letter-spacing:.06em;text-transform:uppercase;' +
-      'white-space:nowrap;flex-shrink:0;}' +
-    '.alert-divider{width:2px;height:16px;background:rgba(255,255,255,.2);flex-shrink:0;}' +
-    '.alert-text{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}' +
-    '.alert-until{margin-left:auto;white-space:nowrap;flex-shrink:0;' +
-      'opacity:.75;padding-right:8px;}' +
+    '.alert-warning {background:rgba(50,0,0,0.55);border-left:4px solid #C8102E;color:#ffaaaa;}' +
+    '.alert-watch   {background:rgba(50,25,0,0.55);border-left:4px solid #d68910;color:#ffd08a;}' +
+    '.alert-advisory{background:rgba(40,40,0,0.55);border-left:4px solid #b7950b;color:#e0d890;}' +
 
     // Radar panel — dark background is appropriate for map legibility.
     '#radar-map{width:100%;height:100%;}' +
