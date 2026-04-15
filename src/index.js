@@ -1053,7 +1053,7 @@ function renderConditionsOnly(wx, apparent, daily, alerts, aqi,
 function buildAlertBannersHtml(activeAlerts, width, scale) {
   if (!activeAlerts || activeAlerts.length === 0) return '';
 
-  const fontSize  = Math.round(13 * scale);
+  const fontSize  = Math.round(15 * scale);
   const typeSize  = Math.round(12 * scale);
   const padV      = Math.round(7  * scale);
   const padH      = Math.round(16 * scale);
