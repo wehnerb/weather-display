@@ -78,7 +78,7 @@ const NWS_ALERT_ZONE = 'NDZ039';    // Cass County, ND
 const NWS_STATION    = 'KFAR';      // Fargo Hector International Airport
 
 // Forecast display
-const FORECAST_DAYS  = 4;    // fetch 4 days so tomorrow is day 1 after today is filtered out
+const FORECAST_DAYS  = 3;    // fetch 4 days so tomorrow is day 1 after today is filtered out
 const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
 
 // Radar animation (client-side)
