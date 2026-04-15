@@ -78,7 +78,7 @@ const NWS_ALERT_ZONE = 'NDZ039';    // Cass County, ND
 const NWS_STATION    = 'KFAR';      // Fargo Hector International Airport
 
 // Forecast display
-const FORECAST_DAYS  = 3;    // number of days in the 3-day forecast
+const FORECAST_DAYS  = 4;    // fetch 4 days so tomorrow is day 1 after today is filtered out
 const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
 
 // Radar animation (client-side)
@@ -735,8 +735,14 @@ function buildDailyForecast(periods, count) {
     }
   }
 
-  // Return the next `count` calendar dates that have forecast data.
-  return Object.values(map).slice(0, count);
+  // Drop today's entry so the forecast starts from tomorrow — today's
+  // conditions are already shown in the current conditions panel.
+  // Fetch one extra day (FORECAST_DAYS = 4) so that after filtering
+  // today out, exactly 3 future days remain.
+  const todayStr = toLocalDateStr(new Date());
+  return Object.values(map).filter(function(d) {
+    return d.dateStr !== todayStr;
+  }).slice(0, count);
 }
 
 // Builds the hourly strip slot array from NWS hourly forecast periods.
