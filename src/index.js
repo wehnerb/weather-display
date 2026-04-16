@@ -367,6 +367,7 @@ export default {
       const wx       = processObservations(obsData);
       const apparent = getApparentTemp(gridData, now);
       const daily    = buildDailyForecast(dailyPeriods, FORECAST_DAYS);
+      const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
       const aqi      = processAqi(aqiData);
@@ -377,11 +378,11 @@ export default {
         html = renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg);
       } else if (isSmall && viewKey === 'conditions') {
         html = renderConditionsOnly(
-          wx, apparent, daily, alerts, aqi, sunTimes, layout, layoutKey, darkBg
+          wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, layout, layoutKey, darkBg
         );
       } else {
         html = renderFullPage(
-          wx, apparent, daily, hourly, alerts, aqi, sunTimes,
+          wx, apparent, daily, todayHiLo, hourly, alerts, aqi, sunTimes,
           radarFrames, layout, layoutKey, darkBg
         );
       }
@@ -965,7 +966,7 @@ function calcSunriseSunset(date, lat, lon) {
 // Renders the full weather page (wide / full layouts).
 // Contains: alert banners, radar panel (left), conditions panel (right),
 // hourly strip (bottom).
-function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
+function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
                         sunTimes, radarFrames, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
@@ -978,7 +979,7 @@ function renderFullPage(wx, apparent, daily, hourly, alerts, aqi,
   const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale);
   const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
-    wx, apparent, daily, alerts, aqi, sunTimes, condWidth, stripH, scale, isFull
+    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, stripH, scale, isFull
   );
   const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, scale);
 
@@ -1030,14 +1031,14 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
 // Renders a conditions-only page for split/tri layouts with ?view=conditions.
 // Contains: alert banners, current conditions, stats, sunrise/sunset, 3-day forecast.
 // No hourly strip (too narrow for split/tri widths).
-function renderConditionsOnly(wx, apparent, daily, alerts, aqi,
+function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
                                sunTimes, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
   const alertsHtml = buildAlertBannersHtml(alerts.active, width, scale);
   const condHtml   = buildConditionsPanelHtml(
-    wx, apparent, daily, alerts, aqi, sunTimes, width, 0, scale, false
+    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, scale, false
   );
 
   const styles = buildConditionsOnlyStyles(width, height, scale, darkBg);
@@ -1135,7 +1136,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
 // Builds the HTML for the right-side conditions panel.
 // panelWidth: pixel width of the panel.
 // stripH: height (px) of the hourly strip below; 0 for conditions-only pages.
-function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
+function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
                                    sunTimes, panelWidth, stripH, scale, isFull) {
   // Derive font sizes and padding from scale.
   const hdrFont    = Math.round(11 * scale);
@@ -1209,10 +1210,13 @@ function buildConditionsPanelHtml(wx, apparent, daily, alerts, aqi,
   const pressVal  = wx.pressure   !== null ? wx.pressure   + ' inHg' : '--';
   const visVal    = wx.visibility !== null ? wx.visibility + ' mi' : '--';
 
-  // Hi/Lo from the daily forecast periods (first daytime = high, first night = low).
-  const hiLo      = getDailyHiLo(daily.map ? daily.map(function(d) { return d; }) : []);
-  // Build hi/lo using raw forecast periods for accuracy.
-  const hiLoVal   = buildHiLoString(daily);
+  // Format today's hi/lo from raw daily periods passed from the top level.
+  // daily[] has today filtered out for the forecast rows, so it cannot be used here.
+  const hiLoVal = (todayHiLo.high !== null && todayHiLo.low !== null)
+    ? todayHiLo.high + '°F / ' + todayHiLo.low + '°F'
+    : todayHiLo.high !== null ? 'Hi ' + todayHiLo.high + '°F'
+    : todayHiLo.low  !== null ? 'Lo ' + todayHiLo.low  + '°F tonight'
+    : '--';
 
   function statCell(label, value) {
     return (
@@ -1798,17 +1802,6 @@ function formatShortAlertTime(date) {
     timeZone: 'America/Chicago',
     weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(date);
-}
-
-// Builds the Hi/Lo string for today from the daily forecast array.
-// Shows "Hi 50°F / Lo 32°F", or just one if the other is unavailable.
-function buildHiLoString(daily) {
-  if (!daily || daily.length === 0) return '--';
-  const d = daily[0];
-  if (d.high !== null && d.low !== null) return d.high + '°F / ' + d.low + '°F';
-  if (d.high !== null)                   return 'Hi ' + d.high + '°F';
-  if (d.low  !== null)                   return 'Lo ' + d.low  + '°F tonight';
-  return '--';
 }
 
 
