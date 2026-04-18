@@ -270,22 +270,25 @@ const WX_SM = _buildIconSet(ICON_SIZE_SM);
 // so they sit flush with adjacent text without breaking flow.
 const WX_SVG_SUNRISE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
-  '<path d="M 4.5 11 A 4.5 4.5 0 0 0 13.5 11" fill="#f0c040"/>' +
-  '<line x1="2" y1="11" x2="16" y2="11" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="9" y1="5" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="4.8" y1="6.8" x2="3.3" y2="5.3" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="13.2" y1="6.8" x2="14.7" y2="5.3" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<path d="M 3.5 15 A 5.5 5.5 0 0 0 14.5 15" fill="#f0c040"/>' +
+  '<line x1="2" y1="15" x2="16" y2="15" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="9" y1="6" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="7.5" y1="4" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="10.5" y1="4" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
   '</svg>';
 
 const WX_SVG_SUNSET =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
-  '<path d="M 4.5 7 A 4.5 4.5 0 0 1 13.5 7" fill="#f0c040"/>' +
-  '<line x1="2" y1="7" x2="16" y2="7" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<path d="M 3.5 15 A 5.5 5.5 0 0 0 14.5 15" fill="#f0c040"/>' +
+  '<line x1="2" y1="15" x2="16" y2="15" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="9" y1="2.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="7.5" y1="4.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="10.5" y1="4.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
   '</svg>';
 
 const WX_SVG_DROP =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
-  '<path d="M 6 1 C 2 4 2 11 6 11 C 10 11 10 4 6 1 Z" fill="#4db8ff"/>' +
+  '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
   '</svg>';
 
 // Maps an NWS shortForecast string to the appropriate precomputed SVG icon.
@@ -1329,7 +1332,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
           ) +
         '</div>' +
         (precip
-          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">💧 ' +
+          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="fc-precip"></div>'
         ) +
