@@ -266,6 +266,39 @@ function _buildIconSet(s) {
 const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
+const WX_SVG_SUNRISE =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
+  '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="1.5" y1="9" x2="3" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="9" y1="9" x2="10.5" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="5.8" x2="3.9" y2="6.9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="11.1" x2="9.2" y2="12.2" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="12.2" x2="3.9" y2="11.1" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="6.9" x2="9.2" y2="5.8" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<path d="M 14 14 L 14 4 M 11.5 6.5 L 14 4 L 16.5 6.5" stroke="#f0c040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+  '</svg>';
+
+const WX_SVG_SUNSET =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
+  '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="1.5" y1="9" x2="3" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="9" y1="9" x2="10.5" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="5.8" x2="3.9" y2="6.9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="11.1" x2="9.2" y2="12.2" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="12.2" x2="3.9" y2="11.1" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="6.9" x2="9.2" y2="5.8" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<path d="M 14 4 L 14 14 M 11.5 11.5 L 14 14 L 16.5 11.5" stroke="#f0c040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
+  '</svg>';
+
+const WX_SVG_DROP =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
+  '</svg>';
+
 // Maps an NWS shortForecast string to the appropriate precomputed SVG icon.
 // Checks are case-insensitive and ordered most-specific to least-specific to
 // prevent broad matches (e.g. "rain") from shadowing specific ones (e.g. "freezing rain").
@@ -1252,7 +1285,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const sunHtml =
     '<div class="sun-row">' +
       '<div class="sun-cell">' +
-        '<span class="sun-icon">🌅</span>' +
+        '<span class="sun-icon">' + WX_SVG_SUNRISE + '</span>' +
         '<div>' +
           '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNRISE</div>' +
           '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
@@ -1261,7 +1294,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
         '</div>' +
       '</div>' +
       '<div class="sun-cell">' +
-        '<span class="sun-icon">🌇</span>' +
+        '<span class="sun-icon">' + WX_SVG_SUNSET + '</span>' +
         '<div>' +
           '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNSET</div>' +
           '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
@@ -1307,7 +1340,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
           ) +
         '</div>' +
         (precip
-          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">💧 ' +
+          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="fc-precip"></div>'
         ) +
@@ -1359,7 +1392,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
           escapeHtml(slot.temp !== null ? slot.temp + '°' : '--') +
         '</div>' +
         (precip
-          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">💧 ' +
+          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="hour-precip"></div>'
         ) +
