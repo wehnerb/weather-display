@@ -266,6 +266,28 @@ function _buildIconSet(s) {
 const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
+// Inline SVG icons for sunrise, sunset, and precipitation — display:inline-block
+// so they sit flush with adjacent text without breaking flow.
+const WX_SVG_SUNRISE =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M 4.5 11 A 4.5 4.5 0 0 0 13.5 11" fill="#f0c040"/>' +
+  '<line x1="2" y1="11" x2="16" y2="11" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="9" y1="5" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="4.8" y1="6.8" x2="3.3" y2="5.3" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<line x1="13.2" y1="6.8" x2="14.7" y2="5.3" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '</svg>';
+
+const WX_SVG_SUNSET =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M 4.5 7 A 4.5 4.5 0 0 1 13.5 7" fill="#f0c040"/>' +
+  '<line x1="2" y1="7" x2="16" y2="7" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
+  '</svg>';
+
+const WX_SVG_DROP =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M 6 1 C 2 4 2 11 6 11 C 10 11 10 4 6 1 Z" fill="#4db8ff"/>' +
+  '</svg>';
+
 // Maps an NWS shortForecast string to the appropriate precomputed SVG icon.
 // Checks are case-insensitive and ordered most-specific to least-specific to
 // prevent broad matches (e.g. "rain") from shadowing specific ones (e.g. "freezing rain").
@@ -1252,7 +1274,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const sunHtml =
     '<div class="sun-row">' +
       '<div class="sun-cell">' +
-        '<span class="sun-icon">🌅</span>' +
+        '<span class="sun-icon">' + WX_SVG_SUNRISE + '</span>' +
         '<div>' +
           '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNRISE</div>' +
           '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
@@ -1261,7 +1283,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
         '</div>' +
       '</div>' +
       '<div class="sun-cell">' +
-        '<span class="sun-icon">🌇</span>' +
+        '<span class="sun-icon">' + WX_SVG_SUNSET + '</span>' +
         '<div>' +
           '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNSET</div>' +
           '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
@@ -1359,7 +1381,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
           escapeHtml(slot.temp !== null ? slot.temp + '°' : '--') +
         '</div>' +
         (precip
-          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">💧 ' +
+          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="hour-precip"></div>'
         ) +
