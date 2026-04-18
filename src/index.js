@@ -266,24 +266,32 @@ function _buildIconSet(s) {
 const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
-// Inline SVG icons for sunrise, sunset, and precipitation — display:inline-block
-// so they sit flush with adjacent text without breaking flow.
 const WX_SVG_SUNRISE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
-  '<path d="M 3.5 15 A 5.5 5.5 0 0 0 14.5 15" fill="#f0c040"/>' +
-  '<line x1="2" y1="15" x2="16" y2="15" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="9" y1="6" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="7.5" y1="4" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="10.5" y1="4" x2="9" y2="2.5" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
+  '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="1.5" y1="9" x2="3" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="9" y1="9" x2="10.5" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="5.8" x2="3.9" y2="6.9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="11.1" x2="9.2" y2="12.2" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="12.2" x2="3.9" y2="11.1" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="6.9" x2="9.2" y2="5.8" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<path d="M 14 14 L 14 4 M 11.5 6.5 L 14 4 L 16.5 6.5" stroke="#f0c040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
   '</svg>';
 
 const WX_SVG_SUNSET =
   '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
-  '<path d="M 3.5 15 A 5.5 5.5 0 0 0 14.5 15" fill="#f0c040"/>' +
-  '<line x1="2" y1="15" x2="16" y2="15" stroke="rgba(255,255,255,0.35)" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="9" y1="2.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="7.5" y1="4.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
-  '<line x1="10.5" y1="4.5" x2="9" y2="6" stroke="#f0c040" stroke-width="1.5" stroke-linecap="round"/>' +
+  '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
+  '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="1.5" y1="9" x2="3" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="9" y1="9" x2="10.5" y2="9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="5.8" x2="3.9" y2="6.9" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="11.1" x2="9.2" y2="12.2" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="2.8" y1="12.2" x2="3.9" y2="11.1" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<line x1="8.1" y1="6.9" x2="9.2" y2="5.8" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
+  '<path d="M 14 4 L 14 14 M 11.5 11.5 L 14 14 L 16.5 11.5" stroke="#f0c040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
   '</svg>';
 
 const WX_SVG_DROP =
