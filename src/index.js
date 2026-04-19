@@ -1,3 +1,4 @@
+import { fetchWithTimeout } from './shared/fetch-helpers.js';
 // =============================================================================
 // weather-display — Cloudflare Worker
 // =============================================================================
@@ -470,10 +471,10 @@ export default {
 async function fetchNwsObservations(userAgent) {
   const url = 'https://api.weather.gov/stations/' + NWS_STATION + '/observations/latest';
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
       cf: { cacheTtl: NWS_CONDITIONS_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('NWS observations fetch failed (' + res.status + ')');
       return null;
@@ -493,10 +494,10 @@ async function fetchNwsGridData(userAgent) {
   const url = 'https://api.weather.gov/gridpoints/' +
     NWS_OFFICE + '/' + NWS_GRID_X + ',' + NWS_GRID_Y;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
       cf: { cacheTtl: NWS_GRIDDATA_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('NWS griddata fetch failed (' + res.status + ')');
       return null;
@@ -515,10 +516,10 @@ async function fetchNwsDaily(userAgent) {
   const url = 'https://api.weather.gov/gridpoints/' +
     NWS_OFFICE + '/' + NWS_GRID_X + ',' + NWS_GRID_Y + '/forecast';
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
       cf: { cacheTtl: NWS_FORECAST_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('NWS daily forecast fetch failed (' + res.status + ')');
       return null;
@@ -537,10 +538,10 @@ async function fetchNwsHourly(userAgent) {
   const url = 'https://api.weather.gov/gridpoints/' +
     NWS_OFFICE + '/' + NWS_GRID_X + ',' + NWS_GRID_Y + '/forecast/hourly';
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
       cf: { cacheTtl: NWS_FORECAST_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('NWS hourly forecast fetch failed (' + res.status + ')');
       return null;
@@ -558,10 +559,10 @@ async function fetchNwsHourly(userAgent) {
 async function fetchNwsAlerts(userAgent) {
   const url = 'https://api.weather.gov/alerts/active?zone=' + NWS_ALERT_ZONE;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
       cf: { cacheTtl: NWS_ALERTS_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('NWS alerts fetch failed (' + res.status + ')');
       return null;
@@ -586,9 +587,9 @@ async function fetchAirNowAqi(apiKey) {
     '&distance=25' +
     '&API_KEY=' + apiKey;
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       cf: { cacheTtl: AQI_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('AirNow AQI fetch failed (' + res.status + ')');
       return null;
@@ -615,9 +616,9 @@ async function fetchAirNowAqi(apiKey) {
 async function fetchRainViewerFrames() {
   const url = 'https://api.rainviewer.com/public/weather-maps.json';
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       cf: { cacheTtl: RAINVIEWER_TTL },
-    });
+    }, 8000);
     if (!res.ok) {
       console.error('RainViewer fetch failed (' + res.status + ')');
       return null;
@@ -1027,8 +1028,8 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
     '<div class="hourly-strip">' + hourlyHtml + '</div>';
 
   const headExtra =
-    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">' +
-    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZwickAStsrU8uZcqqDLCd7bkAAkFfS8GH9q0lBVNkMz+fGbppMKxA==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
     body + buildRadarScript(radarFrames),
@@ -1052,8 +1053,8 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
     '<div class="radar-wrap">' + radarHtml + '</div>';
 
   const headExtra =
-    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">' +
-    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZwickAStsrU8uZcqqDLCd7bkAAkFfS8GH9q0lBVNkMz+fGbppMKxA==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-nMMmRyTVoLYqjP9hrbed9S+FzjZHW5gY1TWCHA5ckwXZBadntCNs8kEqAWdrb9O7rxbCaA4lKTIWjDXZxflOcA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
     body + buildRadarScript(radarFrames),
