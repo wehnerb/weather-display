@@ -1,4 +1,8 @@
 import { fetchWithTimeout } from './shared/fetch-helpers.js';
+import { escapeHtml, sanitizeParam } from './shared/html.js';
+import { DARK_BG_COLOR, FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
+import { LAYOUTS } from './shared/layouts.js';
+import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH_BG, ALERT_WATCH_BORDER, ALERT_WATCH_TEXT, ALERT_ADVISORY_BG, ALERT_ADVISORY_BORDER, ALERT_ADVISORY_TEXT } from './shared/alert-colors.js';
 // =============================================================================
 // weather-display — Cloudflare Worker
 // =============================================================================
@@ -103,14 +107,6 @@ const NWS_ALERTS_TTL       =  120;   // active alerts (safety-critical; short TT
 const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
-// Layout pixel dimensions — must match all other station Workers exactly.
-const LAYOUTS = {
-  full:  { width: 1920, height: 1075 },
-  wide:  { width: 1735, height: 720  },
-  split: { width: 852,  height: 720  },
-  tri:   { width: 558,  height: 720  },
-};
-
 // Conditions panel width (px) for wide/full layouts. Remainder goes to radar.
 const CONDITIONS_WIDTH = { full: 520, wide: 460 };
 
@@ -121,10 +117,6 @@ const HOURLY_HEIGHT = { full: 100, wide: 80 };
 const DEFAULT_LAYOUT     = 'wide';
 const DEFAULT_VIEW_SMALL = 'conditions';  // default ?view= for split/tri
 const ERROR_RETRY_SECONDS = 60;
-
-// Background color used when ?bg=dark is set.
-// Matches the probationary-firefighter-display dark testing background.
-const DARK_BG_COLOR = '#111111';
 
 
 // =============================================================================
@@ -1552,8 +1544,8 @@ function baseStyles(width, height, useSolidBg) {
     'html,body{' +
       'width:' + width + 'px;height:' + height + 'px;' +
       'overflow:hidden;' +
-      'background:' + (useSolidBg ? DARK_BG_COLOR : 'transparent') + ';color:rgba(255,255,255,0.92);' +
-      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;' +
+      'background:' + (useSolidBg ? DARK_BG_COLOR : 'transparent') + ';color:' + TEXT_PRIMARY + ';' +
+      'font-family:' + FONT_STACK + ';' +
     '}' +
 
     // Alert banners — stacked above all content, colour-coded by severity.
@@ -1561,19 +1553,19 @@ function baseStyles(width, height, useSolidBg) {
     '.alerts{flex-shrink:0;}' +
     '.alert-banner{' +
       'border-radius:4px;' +
-      'border:1px solid rgba(255,255,255,0.10);' +
+      'border:1px solid ' + BORDER_SUBTLE + ';' +
       'font-weight:700;' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
     '}' +
-    '.alert-warning {background:rgba(50,0,0,0.55);border-left:4px solid #C8102E;color:#ffaaaa;}' +
-    '.alert-watch   {background:rgba(50,25,0,0.55);border-left:4px solid #d68910;color:#ffd08a;}' +
-    '.alert-advisory{background:rgba(40,40,0,0.55);border-left:4px solid #b7950b;color:#e0d890;}' +
+    '.alert-warning {background:' + ALERT_WARNING_BG + ';border-left:4px solid ' + ALERT_WARNING_BORDER + ';color:' + ALERT_WARNING_TEXT + ';}' +
+    '.alert-watch   {background:' + ALERT_WATCH_BG + ';border-left:4px solid ' + ALERT_WATCH_BORDER + ';color:' + ALERT_WATCH_TEXT + ';}' +
+    '.alert-advisory{background:' + ALERT_ADVISORY_BG + ';border-left:4px solid ' + ALERT_ADVISORY_BORDER + ';color:' + ALERT_ADVISORY_TEXT + ';}' +
 
     // Radar panel — dark background is appropriate for map legibility.
     '#radar-map{width:100%;height:100%;}' +
     '.radar-legend{' +
       'position:absolute;top:10px;left:10px;z-index:1000;' +
-      'background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.10);' +
+      'background:rgba(0,0,0,0.55);border:1px solid ' + BORDER_SUBTLE + ';' +
       'border-radius:4px;padding:5px 8px;' +
     '}' +
     '.legend-title{color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.05em;' +
@@ -1597,7 +1589,7 @@ function baseStyles(width, height, useSolidBg) {
     '.loop-bar{position:absolute;bottom:0;left:0;right:0;height:4px;' +
       'background:rgba(255,255,255,.08);z-index:1000;}' +
     '.loop-bar-fill{height:100%;width:0;' +
-      'background:linear-gradient(90deg,#C8102E,#e03030);' +
+      'background:linear-gradient(90deg,' + ACCENT_COLOR + ',#e03030);' +
       'border-radius:0 2px 2px 0;transition:width .2s ease;}' +
     '.radar-unavailable{' +
       'position:absolute;inset:0;z-index:999;' +
@@ -1609,23 +1601,23 @@ function baseStyles(width, height, useSolidBg) {
     // Conditions panel — white-tinted card surface on transparent background.
     '.cond-panel{' +
       'display:flex;flex-direction:column;overflow:hidden;' +
-      'background:rgba(255,255,255,0.06);border-left:1px solid rgba(255,255,255,0.10);' +
+      'background:' + CARD_BASE + ';border-left:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
     // Section headers use FFD brand red — a functional label treatment, not decorative.
     '.sec-hdr{' +
-      'background:#C8102E;' +
+      'background:' + ACCENT_COLOR + ';' +
       'font-weight:700;letter-spacing:.1em;text-transform:uppercase;' +
       'flex-shrink:0;' +
     '}' +
     '.current-block{' +
       'display:flex;align-items:flex-start;gap:10px;' +
-      'background:rgba(255,255,255,0.10);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.10);' +
+      'background:' + CARD_ELEVATED + ';flex-shrink:0;border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
     '.temp-side{flex:1;}' +
     '.temp-main{display:flex;align-items:flex-end;line-height:1;}' +
     '.temp-val{font-weight:600;color:#fff;}' +
     '.temp-unit{color:rgba(255,255,255,0.45);margin-bottom:4px;margin-left:2px;}' +
-    '.feels{color:rgba(255,255,255,0.68);margin-top:4px;}' +
+    '.feels{color:' + TEXT_SECONDARY + ';margin-top:4px;}' +
     '.aqi-badge{' +
       'display:inline-block;padding:2px 7px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.05em;' +
@@ -1634,32 +1626,32 @@ function baseStyles(width, height, useSolidBg) {
       'display:flex;flex-direction:column;align-items:center;gap:4px;' +
       'flex-shrink:0;' +
     '}' +
-    '.cond-text{color:rgba(255,255,255,0.68);text-align:center;text-transform:uppercase;' +
+    '.cond-text{color:' + TEXT_SECONDARY + ';text-align:center;text-transform:uppercase;' +
       'letter-spacing:.04em;}' +
 
     // Stats grid — 2-column grid, last row spans both columns
     '.stats-grid{' +
       'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid rgba(255,255,255,0.10);' +
+      'border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
     '.stat-cell{' +
-      'padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.10);' +
+      'padding:6px 10px;border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
-    '.stat-cell:nth-child(odd){border-right:1px solid rgba(255,255,255,0.10);}' +
+    '.stat-cell:nth-child(odd){border-right:1px solid ' + BORDER_SUBTLE + ';}' +
     '.stat-span2{grid-column:span 2;border-right:none;}' +
-    '.stat-lbl{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.05em;}' +
-    '.stat-val{color:rgba(255,255,255,0.92);margin-top:1px;white-space:nowrap;' +
+    '.stat-lbl{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.05em;}' +
+    '.stat-val{color:' + TEXT_PRIMARY + ';margin-top:1px;white-space:nowrap;' +
       'overflow:hidden;text-overflow:ellipsis;}' +
 
     // Sunrise / sunset row
     '.sun-row{' +
       'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.04);' +
+      'border-bottom:1px solid ' + BORDER_SUBTLE + ';background:rgba(255,255,255,0.04);' +
     '}' +
     '.sun-cell{display:flex;align-items:center;gap:8px;padding:6px 10px;}' +
-    '.sun-cell:first-child{border-right:1px solid rgba(255,255,255,0.10);}' +
+    '.sun-cell:first-child{border-right:1px solid ' + BORDER_SUBTLE + ';}' +
     '.sun-icon{font-size:18px;}' +
-    '.sun-lbl{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.05em;}' +
+    '.sun-lbl{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.05em;}' +
     '.sun-time{color:#f0c040;font-weight:600;}' +
 
     // 3-day forecast
@@ -1669,25 +1661,25 @@ function baseStyles(width, height, useSolidBg) {
       'grid-template-columns:50px auto 1fr auto auto auto;' +
       'align-items:center;gap:6px;' +
       'padding:0 10px;' +
-      'border-bottom:1px solid rgba(255,255,255,0.10);min-height:0;' +
+      'border-bottom:1px solid ' + BORDER_SUBTLE + ';min-height:0;' +
     '}' +
     '.fc-row:last-child{border-bottom:none;}' +
     '.fc-row:nth-child(even){background:rgba(255,255,255,0.04);}' +
     // Day name in forecast rows — white, bold. The red section header above
     // already provides the brand accent; repeating red here would be redundant.
-    '.fc-day{font-weight:700;color:rgba(255,255,255,0.92);text-transform:uppercase;' +
+    '.fc-day{font-weight:700;color:' + TEXT_PRIMARY + ';text-transform:uppercase;' +
       'letter-spacing:.05em;}' +
     '.fc-icon{flex-shrink:0;}' +
     // fc-desc is a flex column: condition text on top, wind line below.
     '.fc-desc{display:flex;flex-direction:column;justify-content:center;' +
       'overflow:hidden;min-width:0;}' +
-    '.fc-desc-text{color:rgba(255,255,255,0.92);white-space:nowrap;overflow:hidden;' +
+    '.fc-desc-text{color:' + TEXT_PRIMARY + ';white-space:nowrap;overflow:hidden;' +
       'text-overflow:ellipsis;}' +
     '.fc-wind{color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;' +
       'text-overflow:ellipsis;margin-top:2px;}' +
     '.fc-precip{color:#4db8ff;font-weight:600;white-space:nowrap;}' +
-    '.fc-temp{color:rgba(255,255,255,0.92);font-weight:600;white-space:nowrap;text-align:right;}' +
-    '.fc-sep{color:rgba(255,255,255,0.38);margin:0 2px;}' +
+    '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;}' +
+    '.fc-sep{color:' + TEXT_TERTIARY + ';margin:0 2px;}' +
     '.fc-badge{white-space:nowrap;}' +
     '.alert-badge{display:inline-block;padding:1px 5px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.04em;}' +
@@ -1699,20 +1691,20 @@ function baseStyles(width, height, useSolidBg) {
     // brighter border to give visual weight without a red accent bar.
     '.hourly-strip{' +
       'display:flex;flex-direction:row;align-items:stretch;' +
-      'border-top:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);flex-shrink:0;' +
+      'border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';flex-shrink:0;' +
     '}' +
     '.hour-card{' +
       'flex:1;display:flex;flex-direction:column;align-items:center;' +
       'justify-content:center;gap:3px;' +
-      'border-right:1px solid rgba(255,255,255,0.10);padding:4px 0;' +
+      'border-right:1px solid ' + BORDER_SUBTLE + ';padding:4px 0;' +
     '}' +
     '.hour-card:last-child{border-right:none;}' +
-    '.hour-time{color:rgba(255,255,255,0.68);text-transform:uppercase;letter-spacing:.04em;}' +
+    '.hour-time{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.04em;}' +
     '.hour-icon{flex-shrink:0;}' +
     '.hour-temp{color:#fff;font-weight:600;}' +
     '.hour-precip{color:#4db8ff;}' +
     '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
-      'color:rgba(255,255,255,0.38);font-size:12px;}'
+      'color:' + TEXT_TERTIARY + ';font-size:12px;}'
   );
 }
 
@@ -1766,11 +1758,11 @@ function renderErrorPage(title, subtitle, layout, darkBg) {
     '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}' +
     'html,body{width:' + width + 'px;height:' + height + 'px;overflow:hidden;' +
       'background:' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
-      'font-family:"Segoe UI",Arial,Helvetica,sans-serif;' +
+      'font-family:' + FONT_STACK + ';' +
       'display:flex;align-items:center;justify-content:center;}' +
     '.err-wrap{display:flex;flex-direction:column;align-items:center;gap:' + Math.floor(subFont * 0.6) + 'px;text-align:center;}' +
-    '.err-title{font-size:' + titleFont + 'px;font-weight:700;color:#C8102E;letter-spacing:.06em;}' +
-    '.err-sub{font-size:'   + subFont   + 'px;color:rgba(255,255,255,0.92);}' +
+    '.err-title{font-size:' + titleFont + 'px;font-weight:700;color:' + ACCENT_COLOR + ';letter-spacing:.06em;}' +
+    '.err-sub{font-size:'   + subFont   + 'px;color:' + TEXT_PRIMARY + ';}' +
     '</style></head>' +
     '<body>' +
     '<div class="err-wrap">' +
@@ -1885,24 +1877,6 @@ function degreesToCardinal(deg) {
 // =============================================================================
 // GENERAL UTILITIES
 // =============================================================================
-
-// Escapes HTML special characters to prevent injection from API data.
-function escapeHtml(str) {
-  if (!str && str !== 0) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// Strips non-alphanumeric characters (except hyphen/underscore) from a URL
-// parameter value to prevent injection attacks. Returns null for empty input.
-function sanitizeParam(value) {
-  if (!value) return null;
-  return String(value).replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-}
 
 // Assembles the full HTML document string.
 // headExtra: optional additional <head> content (e.g. Leaflet CDN links).
