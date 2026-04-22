@@ -95,7 +95,7 @@ const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
 const ICON_SIZE_LG   = 50;   // current conditions icon (large)
-const ICON_SIZE_SM   = 40;   // forecast rows + hourly strip icons
+const ICON_SIZE_SM   = 30;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
@@ -1366,9 +1366,9 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(18 * scale);
-  const tempFontSize  = Math.round(23 * scale);
-  const precipFontSize = Math.round(18 * scale);
+  const timeFontSize  = Math.round(17 * scale);
+  const tempFontSize  = Math.round(22 * scale);
+  const precipFontSize = Math.round(17 * scale);
 
   let cardsHtml = '';
   for (const slot of hourly) {
