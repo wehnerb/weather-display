@@ -1168,10 +1168,10 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const hdrFont    = Math.round(20 * scale);
   const bigTempFont = Math.round(52 * scale);
   const unitFont   = Math.round(26 * scale);
-  const feelFont   = Math.round(24 * scale);
+  const feelFont   = Math.round(22 * scale);
   const condFont   = Math.round(24 * scale);
-  const statFont   = Math.round(25 * scale);
-  const statLblFont = Math.round(20 * scale);
+  const statFont   = Math.round(23 * scale);
+  const statLblFont = Math.round(18 * scale);
   const sunFont    = Math.round(20 * scale);
   const sunLblFont = Math.round(20 * scale);
   const fcDayFont  = Math.round(20 * scale);
@@ -1196,7 +1196,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   // AQI badge — omitted silently if key was not configured.
   const aqiBadge = aqi
     ? '<span class="aqi-badge" style="background:' + aqi.category.color +
-      ';color:' + aqi.category.text + ';font-size:' + Math.round(10 * scale) + 'px;">' +
+      ';color:' + aqi.category.text + ';font-size:' + Math.round(20 * scale) + 'px;">' +
       'AQI ' + aqi.aqi + ' · ' + escapeHtml(aqi.category.label) + '</span>'
     : '';
 
