@@ -94,7 +94,7 @@ const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before
 const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
-const ICON_SIZE_LG   = 60;   // current conditions icon (large)
+const ICON_SIZE_LG   = 50;   // current conditions icon (large)
 const ICON_SIZE_SM   = 40;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
@@ -260,7 +260,7 @@ const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
 const WX_SVG_SUNRISE =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -274,7 +274,7 @@ const WX_SVG_SUNRISE =
   '</svg>';
 
 const WX_SVG_SUNSET =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -288,7 +288,7 @@ const WX_SVG_SUNSET =
   '</svg>';
 
 const WX_SVG_DROP =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
   '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
   '</svg>';
 
