@@ -1178,8 +1178,8 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const fcDescFont = Math.round(18 * scale);
   const fcTempFont = Math.round(18 * scale);
   const fcWindFont = Math.round(13 * scale);   // wind line below condition description
-  const pad        = Math.round(7 * scale);
-  const hdrPad     = Math.round(6  * scale);
+  const pad        = Math.round(8 * scale);
+  const hdrPad     = Math.round(5  * scale);
 
   // ── Section header helper ────────────────────────────────────────────────
   function sectionHeader(label) {
