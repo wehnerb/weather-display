@@ -260,7 +260,7 @@ const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
 const WX_SVG_SUNRISE =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -274,7 +274,7 @@ const WX_SVG_SUNRISE =
   '</svg>';
 
 const WX_SVG_SUNSET =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -1165,19 +1165,19 @@ function buildRadarPanelHtml(panelWidth, scale) {
 function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
                                    sunTimes, panelWidth, stripH, scale, isFull) {
   // Derive font sizes and padding from scale.
-  const hdrFont    = Math.round(18 * scale);
-  const bigTempFont = Math.round(48 * scale);
-  const unitFont   = Math.round(24 * scale);
-  const feelFont   = Math.round(20 * scale);
-  const condFont   = Math.round(22 * scale);
-  const statFont   = Math.round(21 * scale);
-  const statLblFont = Math.round(16 * scale);
-  const sunFont    = Math.round(18 * scale);
-  const sunLblFont = Math.round(18 * scale);
-  const fcDayFont  = Math.round(18 * scale);
-  const fcDescFont = Math.round(19 * scale);
-  const fcTempFont = Math.round(19 * scale);
-  const fcWindFont = Math.round(14 * scale);   // wind line below condition description
+  const hdrFont    = Math.round(17 * scale);
+  const bigTempFont = Math.round(46 * scale);
+  const unitFont   = Math.round(23 * scale);
+  const feelFont   = Math.round(19 * scale);
+  const condFont   = Math.round(21 * scale);
+  const statFont   = Math.round(20 * scale);
+  const statLblFont = Math.round(15 * scale);
+  const sunFont    = Math.round(17 * scale);
+  const sunLblFont = Math.round(17 * scale);
+  const fcDayFont  = Math.round(17 * scale);
+  const fcDescFont = Math.round(18 * scale);
+  const fcTempFont = Math.round(18 * scale);
+  const fcWindFont = Math.round(13 * scale);   // wind line below condition description
   const pad        = Math.round(7 * scale);
   const hdrPad     = Math.round(6  * scale);
 
@@ -1196,7 +1196,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   // AQI badge — omitted silently if key was not configured.
   const aqiBadge = aqi
     ? '<span class="aqi-badge" style="background:' + aqi.category.color +
-      ';color:' + aqi.category.text + ';font-size:' + Math.round(20 * scale) + 'px;">' +
+      ';color:' + aqi.category.text + ';font-size:' + Math.round(15 * scale) + 'px;">' +
       'AQI ' + aqi.aqi + ' · ' + escapeHtml(aqi.category.label) + '</span>'
     : '';
 
@@ -1366,9 +1366,9 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(15 * scale);
-  const tempFontSize  = Math.round(20 * scale);
-  const precipFontSize = Math.round(15 * scale);
+  const timeFontSize  = Math.round(13 * scale);
+  const tempFontSize  = Math.round(18 * scale);
+  const precipFontSize = Math.round(12 * scale);
 
   let cardsHtml = '';
   for (const slot of hourly) {
