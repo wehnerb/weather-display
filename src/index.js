@@ -94,8 +94,8 @@ const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before
 const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
-const ICON_SIZE_LG   = 36;   // current conditions icon (large)
-const ICON_SIZE_SM   = 22;   // forecast rows + hourly strip icons
+const ICON_SIZE_LG   = 60;   // current conditions icon (large)
+const ICON_SIZE_SM   = 40;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
@@ -1174,11 +1174,11 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const statLblFont = Math.round(20 * scale);
   const sunFont    = Math.round(20 * scale);
   const sunLblFont = Math.round(20 * scale);
-  const fcDayFont  = Math.round(22 * scale);
-  const fcDescFont = Math.round(23 * scale);
-  const fcTempFont = Math.round(23 * scale);
-  const fcWindFont = Math.round(18 * scale);   // wind line below condition description
-  const pad        = Math.round(8 * scale);
+  const fcDayFont  = Math.round(20 * scale);
+  const fcDescFont = Math.round(21 * scale);
+  const fcTempFont = Math.round(21 * scale);
+  const fcWindFont = Math.round(16 * scale);   // wind line below condition description
+  const pad        = Math.round(7 * scale);
   const hdrPad     = Math.round(6  * scale);
 
   // ── Section header helper ────────────────────────────────────────────────
@@ -1366,9 +1366,9 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(20 * scale);
-  const tempFontSize  = Math.round(25 * scale);
-  const precipFontSize = Math.round(20 * scale);
+  const timeFontSize  = Math.round(18 * scale);
+  const tempFontSize  = Math.round(23 * scale);
+  const precipFontSize = Math.round(18 * scale);
 
   let cardsHtml = '';
   for (const slot of hourly) {
