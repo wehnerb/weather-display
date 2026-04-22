@@ -111,7 +111,7 @@ const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every 
 const CONDITIONS_WIDTH = { full: 780, wide: 690 };
 
 // Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT = { full: 130, wide: 105 };
+const HOURLY_HEIGHT = { full: 120, wide: 90 };
 
 // Default values
 const DEFAULT_LAYOUT     = 'wide';
