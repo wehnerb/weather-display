@@ -108,10 +108,10 @@ const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
 // Conditions panel width (px) for wide/full layouts. Remainder goes to radar.
-const CONDITIONS_WIDTH = { full: 520, wide: 460 };
+const CONDITIONS_WIDTH = { full: 780, wide: 690 };
 
 // Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT = { full: 100, wide: 80 };
+const HOURLY_HEIGHT = { full: 130, wide: 105 };
 
 // Default values
 const DEFAULT_LAYOUT     = 'wide';
@@ -1165,20 +1165,20 @@ function buildRadarPanelHtml(panelWidth, scale) {
 function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
                                    sunTimes, panelWidth, stripH, scale, isFull) {
   // Derive font sizes and padding from scale.
-  const hdrFont    = Math.round(11 * scale);
+  const hdrFont    = Math.round(25 * scale);
   const bigTempFont = Math.round(52 * scale);
   const unitFont   = Math.round(26 * scale);
-  const feelFont   = Math.round(12 * scale);
-  const condFont   = Math.round(11 * scale);
-  const statFont   = Math.round(13 * scale);
-  const statLblFont = Math.round(10 * scale);
-  const sunFont    = Math.round(15 * scale);
-  const sunLblFont = Math.round(10 * scale);
-  const fcDayFont  = Math.round(13 * scale);
-  const fcDescFont = Math.round(12 * scale);
-  const fcTempFont = Math.round(13 * scale);
-  const fcWindFont = Math.round(10 * scale);   // wind line below condition description
-  const pad        = Math.round(10 * scale);
+  const feelFont   = Math.round(24 * scale);
+  const condFont   = Math.round(24 * scale);
+  const statFont   = Math.round(25 * scale);
+  const statLblFont = Math.round(20 * scale);
+  const sunFont    = Math.round(20 * scale);
+  const sunLblFont = Math.round(20 * scale);
+  const fcDayFont  = Math.round(25 * scale);
+  const fcDescFont = Math.round(26 * scale);
+  const fcTempFont = Math.round(26 * scale);
+  const fcWindFont = Math.round(22 * scale);   // wind line below condition description
+  const pad        = Math.round(8 * scale);
   const hdrPad     = Math.round(6  * scale);
 
   // ── Section header helper ────────────────────────────────────────────────
