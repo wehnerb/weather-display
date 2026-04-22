@@ -1165,7 +1165,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
 function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
                                    sunTimes, panelWidth, stripH, scale, isFull) {
   // Derive font sizes and padding from scale.
-  const hdrFont    = Math.round(25 * scale);
+  const hdrFont    = Math.round(20 * scale);
   const bigTempFont = Math.round(52 * scale);
   const unitFont   = Math.round(26 * scale);
   const feelFont   = Math.round(24 * scale);
@@ -1174,10 +1174,10 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
   const statLblFont = Math.round(20 * scale);
   const sunFont    = Math.round(20 * scale);
   const sunLblFont = Math.round(20 * scale);
-  const fcDayFont  = Math.round(25 * scale);
-  const fcDescFont = Math.round(26 * scale);
-  const fcTempFont = Math.round(26 * scale);
-  const fcWindFont = Math.round(22 * scale);   // wind line below condition description
+  const fcDayFont  = Math.round(22 * scale);
+  const fcDescFont = Math.round(23 * scale);
+  const fcTempFont = Math.round(23 * scale);
+  const fcWindFont = Math.round(18 * scale);   // wind line below condition description
   const pad        = Math.round(8 * scale);
   const hdrPad     = Math.round(6  * scale);
 
@@ -1366,9 +1366,9 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(11 * scale);
-  const tempFontSize  = Math.round(14 * scale);
-  const precipFontSize = Math.round(10 * scale);
+  const timeFontSize  = Math.round(20 * scale);
+  const tempFontSize  = Math.round(25 * scale);
+  const precipFontSize = Math.round(20 * scale);
 
   let cardsHtml = '';
   for (const slot of hourly) {
