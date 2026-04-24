@@ -125,6 +125,14 @@ const ERROR_RETRY_SECONDS = 60;
 // and displayed silently as if current. Set to 0 to disable fallback.
 const WIND_STALE_MAX_HOURS = 2;
 
+// Sanity bounds for forecast high and low temperatures (°F).
+// NWS occasionally returns erroneous sentinel values (e.g. -100°F).
+// Any temperature outside this range is treated as missing data.
+// Fargo ND all-time records: -43°F (1996) to 114°F (1936).
+// Bounds are wider than records to allow for future extremes.
+const TEMP_MIN_PLAUSIBLE_F = -80;
+const TEMP_MAX_PLAUSIBLE_F = 140;
+
 
 // =============================================================================
 // SVG WEATHER ICONS — precomputed at module load (zero cost per request)
@@ -966,8 +974,18 @@ function getDailyHiLo(periods) {
   if (!periods) return { high: null, low: null };
   let high = null, low = null;
   for (let i = 0; i < Math.min(periods.length, 6); i++) {
-    if (periods[i].isDaytime  && high === null) high = periods[i].temperature;
-    if (!periods[i].isDaytime && low  === null) low  = periods[i].temperature;
+    var hiTemp = periods[i].temperature;
+    var loTemp = periods[i].temperature;
+    if (periods[i].isDaytime  && high === null &&
+        hiTemp !== null && hiTemp !== undefined &&
+        hiTemp >= TEMP_MIN_PLAUSIBLE_F && hiTemp <= TEMP_MAX_PLAUSIBLE_F) {
+      high = hiTemp;
+    }
+    if (!periods[i].isDaytime && low === null &&
+        loTemp !== null && loTemp !== undefined &&
+        loTemp >= TEMP_MIN_PLAUSIBLE_F && loTemp <= TEMP_MAX_PLAUSIBLE_F) {
+      low = loTemp;
+    }
     if (high !== null && low !== null) break;
   }
   return { high, low };
