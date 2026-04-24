@@ -307,6 +307,11 @@ const WX_SVG_DROP =
   '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
   '</svg>';
 
+const WX_SVG_DROP_SM =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
+  '</svg>';
+
 // Maps an NWS shortForecast string to the appropriate precomputed SVG icon.
 // Checks are case-insensitive and ordered most-specific to least-specific to
 // prevent broad matches (e.g. "rain") from shadowing specific ones (e.g. "freezing rain").
@@ -1561,7 +1566,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
           escapeHtml(slot.temp !== null ? slot.temp + '°' : '--') +
         '</div>' +
         (precip
-          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP + ' ' +
+          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP_SM + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="hour-precip"></div>'
         ) +
