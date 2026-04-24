@@ -332,6 +332,84 @@ export default {
     // Parse and validate URL parameters before the try block so the error
     // page renderer always has a valid layout to fall back to.
     const url         = new URL(request.url);
+
+    if (url.pathname === '/healthz') {
+      var healthStatus = 'healthy';
+      var details = [];
+
+      try {
+        var nwsProbeRes = await fetchWithTimeout(
+          'https://api.weather.gov/',
+          {
+            headers: {
+              'User-Agent': env.NWS_USER_AGENT || 'FFD-Station-Display/1.0',
+              'Accept': 'application/json',
+            },
+          },
+          5000
+        );
+        if (nwsProbeRes.ok) {
+          details.push('nws: reachable');
+        } else {
+          healthStatus = 'degraded';
+          details.push('nws: unexpected status ' + nwsProbeRes.status);
+        }
+      } catch (e) {
+        healthStatus = 'degraded';
+        details.push('nws: unreachable (' + (e && e.message ? e.message : String(e)) + ')');
+      }
+
+      try {
+        var rvProbeRes = await fetchWithTimeout(
+          'https://api.rainviewer.com/public/weather-maps.json',
+          {},
+          5000
+        );
+        if (rvProbeRes.ok) {
+          details.push('rainviewer: reachable');
+        } else {
+          healthStatus = 'degraded';
+          details.push('rainviewer: unexpected status ' + rvProbeRes.status);
+        }
+      } catch (e) {
+        healthStatus = 'degraded';
+        details.push('rainviewer: unreachable (' + (e && e.message ? e.message : String(e)) + ')');
+      }
+
+      var airnowKey = env.AIRNOW_API_KEY || '';
+      if (!airnowKey) {
+        details.push('airnow: secret not configured (AQI will be omitted)');
+      } else {
+        try {
+          var airnowProbeRes = await fetchWithTimeout(
+            'https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=58102&distance=25&API_KEY=' + airnowKey,
+            {},
+            5000
+          );
+          if (airnowProbeRes.ok) {
+            details.push('airnow: reachable');
+          } else {
+            details.push('airnow: unexpected status ' + airnowProbeRes.status);
+          }
+        } catch (e) {
+          details.push('airnow: unreachable (' + (e && e.message ? e.message : String(e)) + ')');
+        }
+      }
+
+      return new Response(
+        'status: ' + healthStatus + '\n' +
+        'worker: weather-display\n' +
+        details.join('\n') + '\n',
+        {
+          status: healthStatus === 'healthy' ? 200 : 503,
+          headers: {
+            'Content-Type':  'text/plain; charset=UTF-8',
+            'Cache-Control': 'no-store',
+          },
+        }
+      );
+    }
+
     const layoutParam = sanitizeParam(url.searchParams.get('layout')) || DEFAULT_LAYOUT;
     const layoutKey   = (layoutParam in LAYOUTS) ? layoutParam : DEFAULT_LAYOUT;
     const layout      = LAYOUTS[layoutKey];
