@@ -118,6 +118,13 @@ const DEFAULT_LAYOUT     = 'wide';
 const DEFAULT_VIEW_SMALL = 'conditions';  // default ?view= for split/tri
 const ERROR_RETRY_SECONDS = 60;
 
+// Maximum age (in hours) of a cached wind reading to use as fallback
+// when the latest NWS observation returns a null wind speed.
+// NWS occasionally returns null wind with qualityControl:"Z" (flagged bad).
+// When this happens, the last valid reading within this window is used
+// and displayed silently as if current. Set to 0 to disable fallback.
+const WIND_STALE_MAX_HOURS = 2;
+
 
 // =============================================================================
 // SVG WEATHER ICONS — precomputed at module load (zero cost per request)
@@ -469,6 +476,24 @@ export default {
       // Process raw API responses into display-ready objects.
       // Each processor returns null-safe results — missing data is handled gracefully.
       const wx       = processObservations(obsData);
+
+      // Wind fallback: if the latest observation returned null wind speed,
+      // try to use the most recent valid reading within WIND_STALE_MAX_HOURS.
+      if (wx.windSpeed === null && WIND_STALE_MAX_HOURS > 0) {
+        try {
+          var recentObs = await fetchNwsRecentObservations(env.NWS_USER_AGENT);
+          var windFallback = findLastValidWind(recentObs, now);
+          if (windFallback) {
+            wx.windDir   = windFallback.windDir;
+            wx.windSpeed = windFallback.windSpeed;
+            wx.windGust  = windFallback.windGust;
+            console.log('wind-fallback: using cached wind reading — latest obs had null wind');
+          }
+        } catch (e) {
+          console.error('wind-fallback error:', e && e.message ? e.message : e);
+        }
+      }
+
       const apparent = getApparentTemp(gridData, now);
       const daily    = buildDailyForecast(dailyPeriods, FORECAST_DAYS);
       const todayHiLo = getDailyHiLo(dailyPeriods);
@@ -555,6 +580,61 @@ async function fetchNwsObservations(userAgent) {
     console.error('NWS observations error:', e);
     return null;
   }
+}
+
+// Fetches the last several observations from KFAR to find a recent valid
+// wind reading. Used as fallback when the latest observation has null wind.
+// Returns an array of observation properties objects, newest first.
+// Returns empty array on failure.
+async function fetchNwsRecentObservations(userAgent) {
+  var url = 'https://api.weather.gov/stations/' + NWS_STATION + '/observations?limit=5';
+  try {
+    var res = await fetchWithTimeout(url, {
+      headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
+      cf: { cacheTtl: NWS_CONDITIONS_TTL },
+    }, 8000);
+    if (!res.ok) {
+      console.error('NWS recent observations fetch failed (' + res.status + ')');
+      return [];
+    }
+    var data = await res.json();
+    if (!data.features || !Array.isArray(data.features)) return [];
+    return data.features.map(function(f) { return f.properties || null; }).filter(Boolean);
+  } catch (e) {
+    console.error('NWS recent observations error:', e && e.message ? e.message : e);
+    return [];
+  }
+}
+
+// Finds the most recent valid wind reading from a list of observation
+// properties objects. A reading is valid if windSpeed.value is non-null
+// and the observation timestamp is within WIND_STALE_MAX_HOURS of now.
+// Returns { windDir, windSpeed, windGust } or null if no valid reading found.
+function findLastValidWind(observations, now) {
+  if (!observations || !observations.length || WIND_STALE_MAX_HOURS <= 0) return null;
+  var maxAgeMs = WIND_STALE_MAX_HOURS * 3600 * 1000;
+
+  for (var i = 0; i < observations.length; i++) {
+    var props = observations[i];
+    if (!props) continue;
+
+    // Check timestamp is within the allowed window
+    var ts = props.timestamp ? new Date(props.timestamp) : null;
+    if (!ts || isNaN(ts.getTime())) continue;
+    if (now - ts > maxAgeMs) break; // observations are newest-first; stop once too old
+
+    // Check wind speed is valid
+    if (!props.windSpeed || props.windSpeed.value === null ||
+        props.windSpeed.value === undefined) continue;
+
+    // Found a valid reading — extract and return
+    return {
+      windDir:   degreesToCardinal(props.windDirection && props.windDirection.value),
+      windSpeed: nwsKmhToMph(props.windSpeed),
+      windGust:  nwsKmhToMph(props.windGust),
+    };
+  }
+  return null;
 }
 
 // Fetches the gridpoints data for the Fargo grid cell.
