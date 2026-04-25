@@ -113,6 +113,17 @@ const CONDITIONS_WIDTH = { full: 780, wide: 690 };
 // Hourly strip height (px) for wide/full layouts.
 const HOURLY_HEIGHT = { full: 120, wide: 90 };
 
+// Alert banner configuration.
+// ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
+// Increase if alert text wraps; decrease to reserve less space per alert.
+const ALERT_BANNER_HEIGHT_PX = 52;
+
+// Maximum number of alert banners to display simultaneously.
+// Alerts are sorted by severity (most severe first) so the most important
+// alerts are always shown when more than this number are active.
+// Each additional alert consumes ALERT_BANNER_HEIGHT_PX of vertical space.
+const MAX_DISPLAY_ALERTS = 3;
+
 // Default values
 const DEFAULT_LAYOUT     = 'wide';
 const DEFAULT_VIEW_SMALL = 'conditions';  // default ?view= for split/tri
@@ -1034,6 +1045,27 @@ function processAlerts(features, now) {
   return { active, future };
 }
 
+// Calculates the effective content height after reserving space for alert banners.
+// Returns an object with:
+//   alertCount    — number of alerts to display (capped at MAX_DISPLAY_ALERTS)
+//   alertsHeight  — total pixels consumed by alert banners
+//   contentHeight — remaining pixels available for all other content
+//   contentScale  — scale factor derived from contentHeight vs full height,
+//                   applied proportionally to font sizes, icon sizes, strip height
+function calcEffectiveHeight(activeAlerts, totalHeight, baseScale) {
+  var alertCount   = activeAlerts ? Math.min(activeAlerts.length, MAX_DISPLAY_ALERTS) : 0;
+  var alertsHeight = alertCount * ALERT_BANNER_HEIGHT_PX;
+  var contentHeight = totalHeight - alertsHeight;
+  var heightRatio   = alertCount > 0 ? contentHeight / totalHeight : 1;
+  var contentScale  = baseScale * heightRatio;
+  return {
+    alertCount:    alertCount,
+    alertsHeight:  alertsHeight,
+    contentHeight: contentHeight,
+    contentScale:  contentScale,
+  };
+}
+
 // Returns the alert banner severity class for CSS styling.
 // extreme/severe → alert-warning (red), moderate → alert-watch (orange),
 // minor/unknown  → alert-advisory (yellow).
@@ -1183,14 +1215,18 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
 
   const scale = isFull ? 1.18 : 1.0;
 
-  const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale);
+  const eff         = calcEffectiveHeight(alerts.active, height, scale);
+  const activeAlerts = alerts.active ? alerts.active.slice(0, eff.alertCount) : [];
+  const effectiveStripH = Math.round(HOURLY_HEIGHT[layoutKey] * (eff.contentScale / scale));
+
+  const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale, eff.alertCount);
   const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
-    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, stripH, scale, isFull
+    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, effectiveStripH, eff.contentScale, isFull
   );
-  const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, scale);
+  const hourlyHtml   = buildHourlyStripHtml(hourly, width, effectiveStripH, eff.contentScale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, stripH, scale, isFull || darkBg);
+  const styles = buildFullPageStyles(width, height, condWidth, effectiveStripH, eff.contentScale, isFull || darkBg);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
@@ -1216,7 +1252,9 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = 1.0;
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, scale);
+  const eff = calcEffectiveHeight(alerts.active, height, scale);
+
+  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
   const radarHtml  = buildRadarPanelHtml(width, scale);
 
   const styles = buildRadarOnlyStyles(width, height, scale, darkBg);
@@ -1243,12 +1281,14 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, scale);
+  const eff = calcEffectiveHeight(alerts.active, height, scale);
+
+  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
   const condHtml   = buildConditionsPanelHtml(
-    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, scale, false
+    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, eff.contentScale, false
   );
 
-  const styles = buildConditionsOnlyStyles(width, height, scale, darkBg);
+  const styles = buildConditionsOnlyStyles(width, height, eff.contentScale, darkBg);
 
   const body =
     '<div class="alerts">'    + alertsHtml + '</div>' +
@@ -1267,15 +1307,19 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
 // Format matches calendar-display: "⚠ EVENT NAME — until Day H:MM AM"
 // The NWS p.headline field is intentionally omitted — it contains the full
 // "issued [date] at [time] by NWS [office]" string which overflows the banner.
-function buildAlertBannersHtml(activeAlerts, width, scale) {
+function buildAlertBannersHtml(activeAlerts, width, scale, maxAlerts) {
   if (!activeAlerts || activeAlerts.length === 0) return '';
+
+  var alertsToShow = (maxAlerts !== undefined)
+    ? activeAlerts.slice(0, maxAlerts)
+    : activeAlerts;
 
   const fontSize = Math.round(18 * scale);
   const padV     = Math.round(9  * scale);
   const padH     = Math.round(16 * scale);
 
   let html = '';
-  for (const p of activeAlerts) {
+  for (const p of alertsToShow) {
     const cls = alertSeverityClass(p.severity);
 
     // Use p.ends (actual event end) in preference to p.expires (product expiry)
