@@ -1677,99 +1677,92 @@ function buildRadarScript(radarFrames) {
 
   return (
     '<script>' +
-    'var RADAR_LAT='      + LOCATION_LAT   + ';' +
-    'var RADAR_LON='      + LOCATION_LON   + ';' +
-    'var RADAR_ZOOM='     + RADAR_ZOOM     + ';' +
-    'var RADAR_OPACITY='  + RADAR_OPACITY  + ';' +
-    'var RADAR_FRAME_MS=' + RADAR_FRAME_MS + ';' +
-    'var RADAR_HOLD_MS='  + RADAR_HOLD_MS  + ';' +
+    'var RADAR_LAT='           + LOCATION_LAT        + ';' +
+    'var RADAR_LON='           + LOCATION_LON        + ';' +
+    'var RADAR_ZOOM='          + RADAR_ZOOM          + ';' +
+    'var RADAR_OPACITY='       + RADAR_OPACITY       + ';' +
+    'var RADAR_FRAME_MS='      + RADAR_FRAME_MS      + ';' +
+    'var RADAR_HOLD_MS='       + RADAR_HOLD_MS       + ';' +
     'var RADAR_INIT_DELAY_MS=' + RADAR_INIT_DELAY_MS + ';' +
-    'var RADAR_FRAMES='   + framesJson     + ';' +
+    'var RADAR_FRAMES='        + framesJson          + ';' +
 
     'document.addEventListener("DOMContentLoaded",function(){' +
       'setTimeout(function(){' +
 
-      // Create the Leaflet map. All interaction disabled — passive display only.
-      'var map=L.map("radar-map",{' +
-        'center:[RADAR_LAT,RADAR_LON],' +
-        'zoom:RADAR_ZOOM,' +
-        'zoomControl:false,' +
-        'attributionControl:true,' +
-        'dragging:false,' +
-        'scrollWheelZoom:false,' +
-        'doubleClickZoom:false,' +
-        'touchZoom:false,' +
-        'keyboard:false' +
-      '});' +
+        'var map=L.map("radar-map",{' +
+          'center:[RADAR_LAT,RADAR_LON],' +
+          'zoom:RADAR_ZOOM,' +
+          'zoomControl:false,' +
+          'attributionControl:true,' +
+          'dragging:false,' +
+          'scrollWheelZoom:false,' +
+          'doubleClickZoom:false,' +
+          'touchZoom:false,' +
+          'keyboard:false' +
+        '});' +
 
-      // CartoDB Dark Matter base tiles — near-black background with subtle grey
-      // road and label detail. Improves radar colour legibility on dark station
-      // displays compared to the default light OSM tiles. Free tier; no API key
-      // required. Attribution covers both OSM data and CARTO styling.
-      // {r} enables retina/HiDPI tiles automatically where supported.
-      'var baseLayer=L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
-        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors © <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
-        'maxZoom:19' +
-      '});' +
-      'baseLayer.on("tileerror",function(e){' +
-        'setTimeout(function(){' +
-          'e.tile.src=e.tile.src.split("?")[0]+"?retry="+Date.now();' +
-        '},2000);' +
-      '});' +
-      'baseLayer.addTo(map);' +
+        'var baseLayer=L.tileLayer(' +
+          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
+          'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>' +
+            'OpenStreetMap</a> contributors ' +
+            '© <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
+          'maxZoom:19,' +
+          'keepBuffer:0' +
+        '});' +
+        'baseLayer.addTo(map);' +
 
-      // Show fallback message if server-side frame fetch failed.
-      'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
-        'var el=document.getElementById("radar-unavailable");' +
-        'if(el)el.style.display="flex";' +
-        'return;' +
-      '}' +
+        'map.invalidateSize();' +
 
-      // Pre-create one tile layer per frame, all hidden at opacity 0.
-      // Adding them immediately triggers background tile pre-loading.
-      // 512px tiles with zoomOffset:-1: visual zoom 8 → server zoom 7.
-      // This is required because RainViewer 256px tiles cap at zoom 6.
-      'var layers=RADAR_FRAMES.map(function(f){' +
-        'var layer=L.tileLayer(f.tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
-          'opacity:0,' +
+        'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
+          'var el=document.getElementById("radar-unavailable");' +
+          'if(el)el.style.display="flex";' +
+          'return;' +
+        '}' +
+
+        'var radarLayer=L.tileLayer(RADAR_FRAMES[0].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+          'opacity:RADAR_OPACITY,' +
           'tileSize:512,' +
-          'zoomOffset:-1' +
+          'zoomOffset:-1,' +
+          'keepBuffer:0' +
         '});' +
-        'layer.on("tileerror",function(e){' +
-          'setTimeout(function(){' +
-            'e.tile.src=e.tile.src.split("?")[0]+"?retry="+Date.now();' +
-          '},2000);' +
-        '});' +
-        'return layer;' +
-      '});' +
-      'layers.forEach(function(l){l.addTo(map);});' +
+        'radarLayer.addTo(map);' +
 
-      'var frameIdx=0;' +
-      'var progressEl=document.getElementById("radar-progress");' +
-      'var timeEl=document.getElementById("radar-time");' +
+        'var frameIdx=0;' +
+        'var progressEl=document.getElementById("radar-progress");' +
+        'var timeEl=document.getElementById("radar-time");' +
 
-      'function showFrame(){' +
-        'layers.forEach(function(l,i){' +
-          'l.setOpacity(i===frameIdx?RADAR_OPACITY:0);' +
-        '});' +
-        // RainViewer times are Unix seconds — multiply by 1000 for JS Date.
-        'if(timeEl){' +
-          'var ts=new Date(RADAR_FRAMES[frameIdx].time*1000);' +
-          'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
-            'timeZone:"America/Chicago",' +
-            'hour:"numeric",minute:"2-digit",hour12:true' +
-          '});' +
+        'function updateTimestamp(){' +
+          'if(timeEl){' +
+            'var ts=new Date(RADAR_FRAMES[frameIdx].time*1000);' +
+            'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
+              'timeZone:"America/Chicago",' +
+              'hour:"numeric",minute:"2-digit",hour12:true' +
+            '});' +
+          '}' +
+          'if(progressEl){' +
+            'progressEl.style.width=((frameIdx+1)/RADAR_FRAMES.length*100)+"%";' +
+          '}' +
         '}' +
-        'if(progressEl){' +
-          'progressEl.style.width=((frameIdx+1)/layers.length*100)+"%";' +
-        '}' +
-        'var isLast=(frameIdx===layers.length-1);' +
-        'frameIdx=(frameIdx+1)%layers.length;' +
-        'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
-      '}' +
 
-      'map.invalidateSize();' +
-      'setTimeout(showFrame,RADAR_FRAME_MS);' +
+        'function showFrame(){' +
+          'var isLast=(frameIdx===RADAR_FRAMES.length-1);' +
+          'radarLayer.setUrl(RADAR_FRAMES[frameIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
+          'updateTimestamp();' +
+          'frameIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
+          'if(isLast){' +
+            'setTimeout(function(){' +
+              'map.invalidateSize();' +
+              'radarLayer.redraw();' +
+              'setTimeout(showFrame,RADAR_FRAME_MS);' +
+            '},RADAR_HOLD_MS);' +
+          '} else {' +
+            'setTimeout(showFrame,RADAR_FRAME_MS);' +
+          '}' +
+        '}' +
+
+        'updateTimestamp();' +
+        'setTimeout(showFrame,RADAR_FRAME_MS);' +
+
       '},RADAR_INIT_DELAY_MS);' +
     '});' +
     '</script>'
