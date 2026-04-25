@@ -96,7 +96,7 @@ const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before
 // layout may not be complete when DOMContentLoaded fires, causing Leaflet
 // to measure a zero or incorrect map container size and only load one tile.
 // Increase if radar still partially loads on hardware; 250ms is a safe default.
-const RADAR_INIT_DELAY_MS = 250;
+const RADAR_INIT_DELAY_MS = 500;
 const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
