@@ -275,7 +275,7 @@ const WX_LG = _buildIconSet(ICON_SIZE_LG);
 const WX_SM = _buildIconSet(ICON_SIZE_SM);
 
 const WX_SVG_SUNRISE =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="' + ICON_SIZE_SM + '" height="' + ICON_SIZE_SM + '" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -289,7 +289,7 @@ const WX_SVG_SUNRISE =
   '</svg>';
 
 const WX_SVG_SUNSET =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="' + ICON_SIZE_SM + '" height="' + ICON_SIZE_SM + '" viewBox="0 0 18 18" style="display:inline-block;vertical-align:middle;">' +
   '<circle cx="6" cy="9" r="3" fill="#f0c040"/>' +
   '<line x1="6" y1="4.5" x2="6" y2="6" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
   '<line x1="6" y1="12" x2="6" y2="13.5" stroke="#f0c040" stroke-width="1.4" stroke-linecap="round"/>' +
@@ -303,7 +303,12 @@ const WX_SVG_SUNSET =
   '</svg>';
 
 const WX_SVG_DROP =
-  '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<svg xmlns="http://www.w3.org/2000/svg" width="' + ICON_SIZE_SM + '" height="' + ICON_SIZE_SM + '" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
+  '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
+  '</svg>';
+
+const WX_SVG_DROP_SM =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 12 12" style="display:inline-block;vertical-align:middle;">' +
   '<path d="M6 1 C6 1 2 6 2 8.5 C2 10.5 3.8 12 6 12 C8.2 12 10 10.5 10 8.5 C10 6 6 1 6 1 Z" fill="#4db8ff"/>' +
   '</svg>';
 
@@ -1561,7 +1566,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
           escapeHtml(slot.temp !== null ? slot.temp + '°' : '--') +
         '</div>' +
         (precip
-          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP + ' ' +
+          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP_SM + ' ' +
               escapeHtml(precip) + '</div>'
           : '<div class="hour-precip"></div>'
         ) +
@@ -1870,15 +1875,35 @@ function baseStyles(width, height, useSolidBg) {
       'border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';flex-shrink:0;' +
     '}' +
     '.hour-card{' +
-      'flex:1;display:flex;flex-direction:column;align-items:center;' +
-      'justify-content:center;gap:3px;' +
-      'border-right:1px solid ' + BORDER_SUBTLE + ';padding:4px 0;' +
+      'flex:1;display:grid;' +
+      'grid-template-columns:auto auto;' +
+      'grid-template-rows:1fr 1fr;' +
+      'justify-content:space-around;' +
+      'align-items:center;' +
+      'border-right:1px solid ' + BORDER_SUBTLE + ';' +
+      'padding:4px 4px;' +
     '}' +
     '.hour-card:last-child{border-right:none;}' +
-    '.hour-time{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.04em;}' +
-    '.hour-icon{flex-shrink:0;}' +
-    '.hour-temp{color:#fff;font-weight:600;}' +
-    '.hour-precip{color:#4db8ff;}' +
+    '.hour-time{' +
+      'grid-column:1;grid-row:1;' +
+      'color:' + TEXT_SECONDARY + ';' +
+      'text-transform:uppercase;letter-spacing:.04em;' +
+      'align-self:center;justify-self:center;' +
+    '}' +
+    '.hour-icon{' +
+      'grid-column:2;grid-row:1;' +
+      'display:flex;align-items:center;justify-content:center;' +
+    '}' +
+    '.hour-temp{' +
+      'grid-column:1;grid-row:2;' +
+      'color:#fff;font-weight:600;' +
+      'align-self:center;justify-self:center;' +
+    '}' +
+    '.hour-precip{' +
+      'grid-column:2;grid-row:2;' +
+      'color:#4db8ff;' +
+      'display:flex;align-items:center;justify-content:center;' +
+    '}' +
     '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
       'color:' + TEXT_TERTIARY + ';font-size:12px;}'
   );
