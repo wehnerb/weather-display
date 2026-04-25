@@ -1876,7 +1876,7 @@ function baseStyles(width, height, useSolidBg) {
     '}' +
     '.hour-card{' +
       'flex:1;display:grid;' +
-      'grid-template-columns:1fr 1fr;' +
+      'grid-template-columns:1fr auto;' +
       'grid-template-rows:1fr 1fr;' +
       'border-right:1px solid ' + BORDER_SUBTLE + ';' +
       'padding:4px 6px;' +
