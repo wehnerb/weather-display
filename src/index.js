@@ -1677,14 +1677,14 @@ function buildRadarScript(radarFrames) {
 
   return (
     '<script>' +
-    'var RADAR_LAT='           + LOCATION_LAT        + ';' +
-    'var RADAR_LON='           + LOCATION_LON        + ';' +
-    'var RADAR_ZOOM='          + RADAR_ZOOM          + ';' +
-    'var RADAR_OPACITY='       + RADAR_OPACITY       + ';' +
-    'var RADAR_FRAME_MS='      + RADAR_FRAME_MS      + ';' +
-    'var RADAR_HOLD_MS='       + RADAR_HOLD_MS       + ';' +
-    'var RADAR_INIT_DELAY_MS=' + RADAR_INIT_DELAY_MS + ';' +
-    'var RADAR_FRAMES='        + framesJson          + ';' +
+    'var RADAR_LAT='            + LOCATION_LAT       + ';' +
+    'var RADAR_LON='            + LOCATION_LON       + ';' +
+    'var RADAR_ZOOM='           + RADAR_ZOOM         + ';' +
+    'var RADAR_OPACITY='        + RADAR_OPACITY      + ';' +
+    'var RADAR_FRAME_MS='       + RADAR_FRAME_MS     + ';' +
+    'var RADAR_HOLD_MS='        + RADAR_HOLD_MS      + ';' +
+    'var RADAR_INIT_DELAY_MS='  + RADAR_INIT_DELAY_MS + ';' +
+    'var RADAR_FRAMES='         + framesJson         + ';' +
 
     'document.addEventListener("DOMContentLoaded",function(){' +
       'setTimeout(function(){' +
@@ -1707,7 +1707,7 @@ function buildRadarScript(radarFrames) {
             'OpenStreetMap</a> contributors ' +
             '© <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
           'maxZoom:19,' +
-          'keepBuffer:0' +
+          'keepBuffer:2' +
         '});' +
         'baseLayer.addTo(map);' +
 
@@ -1719,15 +1719,28 @@ function buildRadarScript(radarFrames) {
           'return;' +
         '}' +
 
-        'var radarLayer=L.tileLayer(RADAR_FRAMES[0].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+        // Two alternating radar layers — double buffer.
+        // layerA shows the current frame; layerB preloads the next frame.
+        // They swap roles each frame so one is always visible while the
+        // other loads invisibly in the background.
+        'var layerA=L.tileLayer(RADAR_FRAMES[0].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
           'opacity:RADAR_OPACITY,' +
           'tileSize:512,' +
           'zoomOffset:-1,' +
           'keepBuffer:0' +
         '});' +
-        'radarLayer.addTo(map);' +
+        'var layerB=L.tileLayer(RADAR_FRAMES[Math.min(1,RADAR_FRAMES.length-1)].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+          'opacity:0,' +
+          'tileSize:512,' +
+          'zoomOffset:-1,' +
+          'keepBuffer:0' +
+        '});' +
+        'layerA.addTo(map);' +
+        'layerB.addTo(map);' +
 
         'var frameIdx=0;' +
+        'var activeLayer=layerA;' +
+        'var bufferLayer=layerB;' +
         'var progressEl=document.getElementById("radar-progress");' +
         'var timeEl=document.getElementById("radar-time");' +
 
@@ -1746,13 +1759,28 @@ function buildRadarScript(radarFrames) {
 
         'function showFrame(){' +
           'var isLast=(frameIdx===RADAR_FRAMES.length-1);' +
-          'radarLayer.setUrl(RADAR_FRAMES[frameIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
+
+          // Swap: make buffer visible, hide active
+          'activeLayer.setOpacity(0);' +
+          'bufferLayer.setOpacity(RADAR_OPACITY);' +
+
+          // Swap roles
+          'var tmp=activeLayer;' +
+          'activeLayer=bufferLayer;' +
+          'bufferLayer=tmp;' +
+
           'updateTimestamp();' +
+
+          // Advance frame index
           'frameIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
+
+          // Preload next frame on the buffer layer
+          'var nextIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
+          'bufferLayer.setUrl(RADAR_FRAMES[nextIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
+
           'if(isLast){' +
             'setTimeout(function(){' +
               'map.invalidateSize();' +
-              'radarLayer.redraw();' +
               'setTimeout(showFrame,RADAR_FRAME_MS);' +
             '},RADAR_HOLD_MS);' +
           '} else {' +
