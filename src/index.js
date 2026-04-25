@@ -1876,32 +1876,33 @@ function baseStyles(width, height, useSolidBg) {
     '}' +
     '.hour-card{' +
       'flex:1;display:grid;' +
-      'grid-template-columns:1fr auto;' +
+      'grid-template-columns:auto auto;' +
       'grid-template-rows:1fr 1fr;' +
+      'justify-content:space-around;' +
+      'align-items:center;' +
       'border-right:1px solid ' + BORDER_SUBTLE + ';' +
-      'padding:4px 6px;' +
-      'gap:2px;' +
+      'padding:4px 4px;' +
     '}' +
     '.hour-card:last-child{border-right:none;}' +
     '.hour-time{' +
       'grid-column:1;grid-row:1;' +
       'color:' + TEXT_SECONDARY + ';' +
       'text-transform:uppercase;letter-spacing:.04em;' +
-      'align-self:end;font-size:inherit;' +
+      'align-self:center;justify-self:center;' +
     '}' +
     '.hour-icon{' +
       'grid-column:2;grid-row:1;' +
-      'display:flex;align-items:flex-end;justify-content:flex-end;' +
+      'display:flex;align-items:center;justify-content:center;' +
     '}' +
     '.hour-temp{' +
       'grid-column:1;grid-row:2;' +
       'color:#fff;font-weight:600;' +
-      'align-self:start;' +
+      'align-self:center;justify-self:center;' +
     '}' +
     '.hour-precip{' +
       'grid-column:2;grid-row:2;' +
       'color:#4db8ff;' +
-      'display:flex;align-items:flex-start;justify-content:flex-end;' +
+      'display:flex;align-items:center;justify-content:center;' +
     '}' +
     '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
       'color:' + TEXT_TERTIARY + ';font-size:12px;}'
