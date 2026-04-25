@@ -91,6 +91,12 @@ const RADAR_FRAME_COUNT = 18;    // max number of radar frames to animate
 const RADAR_ZOOM        =  8;    // Leaflet zoom level (~75 mi radius); adjust after hardware test
 const RADAR_FRAME_MS    =  200;  // milliseconds per historical frame
 const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before looping
+// Milliseconds to wait after DOMContentLoaded before initializing the
+// Leaflet radar map. On Raspberry Pi hardware without GPU acceleration,
+// layout may not be complete when DOMContentLoaded fires, causing Leaflet
+// to measure a zero or incorrect map container size and only load one tile.
+// Increase if radar still partially loads on hardware; 250ms is a safe default.
+const RADAR_INIT_DELAY_MS = 250;
 const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
@@ -1677,9 +1683,11 @@ function buildRadarScript(radarFrames) {
     'var RADAR_OPACITY='  + RADAR_OPACITY  + ';' +
     'var RADAR_FRAME_MS=' + RADAR_FRAME_MS + ';' +
     'var RADAR_HOLD_MS='  + RADAR_HOLD_MS  + ';' +
+    'var RADAR_INIT_DELAY_MS=' + RADAR_INIT_DELAY_MS + ';' +
     'var RADAR_FRAMES='   + framesJson     + ';' +
 
     'document.addEventListener("DOMContentLoaded",function(){' +
+      'setTimeout(function(){' +
 
       // Create the Leaflet map. All interaction disabled — passive display only.
       'var map=L.map("radar-map",{' +
@@ -1699,10 +1707,16 @@ function buildRadarScript(radarFrames) {
       // displays compared to the default light OSM tiles. Free tier; no API key
       // required. Attribution covers both OSM data and CARTO styling.
       // {r} enables retina/HiDPI tiles automatically where supported.
-      'L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
+      'var baseLayer=L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
         'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors © <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
         'maxZoom:19' +
-      '}).addTo(map);' +
+      '});' +
+      'baseLayer.on("tileerror",function(e){' +
+        'setTimeout(function(){' +
+          'e.tile.src=e.tile.src.split("?")[0]+"?retry="+Date.now();' +
+        '},2000);' +
+      '});' +
+      'baseLayer.addTo(map);' +
 
       // Show fallback message if server-side frame fetch failed.
       'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
@@ -1716,11 +1730,17 @@ function buildRadarScript(radarFrames) {
       // 512px tiles with zoomOffset:-1: visual zoom 8 → server zoom 7.
       // This is required because RainViewer 256px tiles cap at zoom 6.
       'var layers=RADAR_FRAMES.map(function(f){' +
-        'return L.tileLayer(f.tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+        'var layer=L.tileLayer(f.tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
           'opacity:0,' +
           'tileSize:512,' +
           'zoomOffset:-1' +
         '});' +
+        'layer.on("tileerror",function(e){' +
+          'setTimeout(function(){' +
+            'e.tile.src=e.tile.src.split("?")[0]+"?retry="+Date.now();' +
+          '},2000);' +
+        '});' +
+        'return layer;' +
       '});' +
       'layers.forEach(function(l){l.addTo(map);});' +
 
@@ -1748,7 +1768,9 @@ function buildRadarScript(radarFrames) {
         'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
       '}' +
 
+      'map.invalidateSize();' +
       'setTimeout(showFrame,RADAR_FRAME_MS);' +
+      '},RADAR_INIT_DELAY_MS);' +
     '});' +
     '</script>'
   );
