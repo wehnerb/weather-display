@@ -523,6 +523,27 @@ export default {
       const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
+      // ===== TEMPORARY TEST ALERT — REMOVE BEFORE PRODUCTION =====
+      // Injects fake alerts to verify proportional scaling behavior.
+      // Remove this block before merging to main.
+      if (url.searchParams.get('testalerts')) {
+        var testCount = parseInt(url.searchParams.get('testalerts'), 10) || 1;
+        var testAlerts = [];
+        var severities = ['Extreme', 'Severe', 'Moderate'];
+        var events     = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Winter Storm Watch'];
+        var classes    = ['warning', 'warning', 'watch'];
+        for (var ti = 0; ti < Math.min(testCount, MAX_DISPLAY_ALERTS); ti++) {
+          testAlerts.push({
+            event:    events[ti]    || 'Weather Alert',
+            severity: severities[ti] || 'Moderate',
+            ends:     new Date(Date.now() + 3600000).toISOString(),
+            expires:  new Date(Date.now() + 3600000).toISOString(),
+            cls:      classes[ti]   || 'watch',
+          });
+        }
+        alerts.active = testAlerts;
+      }
+      // ===== END TEMPORARY TEST ALERT =====
       const aqi      = processAqi(aqiData);
       const sunTimes = calcSunriseSunset(now, LOCATION_LAT, LOCATION_LON);
 
