@@ -1531,7 +1531,7 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
     '<div class="forecast">' + forecastRowsHtml + '</div>';
 
   return (
-    sectionHeader('Current Conditions') +
+    (isFull ? sectionHeader('Current Conditions') : '') +
     currentHtml +
     statsHtml   +
     sunHtml     +
