@@ -1120,8 +1120,11 @@ function processAlerts(features, now) {
 //   contentHeight — remaining pixels available for all other content
 //   contentScale  — scale factor derived from contentHeight vs full height,
 //                   applied proportionally to font sizes, icon sizes, strip height
-function calcEffectiveHeight(activeAlerts, totalHeight, baseScale) {
-  var alertCount   = activeAlerts ? Math.min(activeAlerts.length, MAX_DISPLAY_ALERTS) : 0;
+function calcEffectiveHeight(activeAlerts, futureAlerts, totalHeight, baseScale) {
+  var activeCount  = activeAlerts ? Math.min(activeAlerts.length, MAX_DISPLAY_ALERTS) : 0;
+  var remaining    = MAX_DISPLAY_ALERTS - activeCount;
+  var futureCount  = (remaining > 0 && futureAlerts) ? Math.min(futureAlerts.length, remaining) : 0;
+  var alertCount   = activeCount + futureCount;
   var alertsHeight = alertCount * ALERT_BANNER_HEIGHT_PX;
   var contentHeight = totalHeight - alertsHeight;
   var heightRatio   = alertCount > 0 ? contentHeight / totalHeight : 1;
@@ -1283,11 +1286,11 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
 
   const scale = isFull ? 1.18 : 1.0;
 
-  const eff         = calcEffectiveHeight(alerts.active, height, scale);
+  const eff         = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
   const activeAlerts = alerts.active ? alerts.active.slice(0, eff.alertCount) : [];
   const effectiveStripH = Math.round(HOURLY_HEIGHT[layoutKey] * (eff.contentScale / scale));
 
-  const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale, eff.alertCount);
+  const alertsHtml   = buildAlertBannersHtml(alerts.active, alerts.future, width, scale, eff.alertCount);
   const radarHtml    = RADAR_MODE === 'image'
     ? buildRadarImageHtml(radarFrames)
     : buildRadarPanelHtml(radarWidth, scale);
@@ -1323,9 +1326,9 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = 1.0;
 
-  const eff = calcEffectiveHeight(alerts.active, height, scale);
+  const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
+  const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
   const radarHtml  = RADAR_MODE === 'image'
     ? buildRadarImageHtml(radarFrames)
     : buildRadarPanelHtml(width, scale);
@@ -1355,9 +1358,9 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
-  const eff = calcEffectiveHeight(alerts.active, height, scale);
+  const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
+  const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
   const condHtml   = buildConditionsPanelHtml(
     wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, eff.contentScale, false
   );
@@ -1381,12 +1384,25 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
 // Format matches calendar-display: "⚠ EVENT NAME — until Day H:MM AM"
 // The NWS p.headline field is intentionally omitted — it contains the full
 // "issued [date] at [time] by NWS [office]" string which overflows the banner.
-function buildAlertBannersHtml(activeAlerts, width, scale, maxAlerts) {
-  if (!activeAlerts || activeAlerts.length === 0) return '';
+function buildAlertBannersHtml(activeAlerts, futureAlerts, width, scale, maxAlerts) {
+  var max          = (maxAlerts !== undefined) ? maxAlerts : (activeAlerts ? activeAlerts.length : 0);
+  var alertsToShow = activeAlerts ? activeAlerts.slice(0, max) : [];
+  var remaining    = max - alertsToShow.length;
 
-  var alertsToShow = (maxAlerts !== undefined)
-    ? activeAlerts.slice(0, maxAlerts)
-    : activeAlerts;
+  // Fill remaining slots with future alerts sorted by onset time (soonest first).
+  if (remaining > 0 && futureAlerts && futureAlerts.length > 0) {
+    var sortedFuture = futureAlerts.slice().sort(function(a, b) {
+      var aOnset = a.onset ? new Date(a.onset) : new Date(0);
+      var bOnset = b.onset ? new Date(b.onset) : new Date(0);
+      return aOnset - bOnset;
+    });
+    var futureToShow = sortedFuture.slice(0, remaining);
+    alertsToShow = alertsToShow.concat(futureToShow.map(function(p) {
+      return Object.assign({}, p, { _isFuture: true });
+    }));
+  }
+
+  if (alertsToShow.length === 0) return '';
 
   const fontSize = Math.round(18 * scale);
   const padV     = Math.round(9  * scale);
@@ -1400,11 +1416,16 @@ function buildAlertBannersHtml(activeAlerts, width, scale, maxAlerts) {
     // for the "until" time, consistent with the calendar-display alert pattern.
     const endDate = p.ends ? new Date(p.ends) : (p.expires ? new Date(p.expires) : null);
 
-    // Build the banner text as a single string: "⚠ EVENT — until Day H:MM AM"
+    // Build the banner text as a single string: "⚠ EVENT — until/begins Day H:MM AM"
     // Matches the calendar-display alert format — no headline body text.
-    const txt = '\u26A0 ' +
-      (p.event || 'Weather Alert') +
-      (endDate ? ' \u2014 until ' + formatShortAlertTime(endDate) : '');
+    var timingLabel;
+    if (p._isFuture) {
+      timingLabel = formatFutureAlertLabel(p);
+      timingLabel = timingLabel ? ' \u2014 ' + timingLabel : '';
+    } else {
+      timingLabel = endDate ? ' \u2014 until ' + formatShortAlertTime(endDate) : '';
+    }
+    const txt = '\u26A0 ' + (p.event || 'Weather Alert') + timingLabel;
 
     html +=
       '<div class="alert-banner ' + cls + '" style="' +
@@ -2259,6 +2280,16 @@ function formatShortAlertTime(date) {
     timeZone: 'America/Chicago',
     weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(date);
+}
+
+// Formats the onset time label for a future alert banner.
+// Returns "begins Day H:MM AM" — used in place of the "until" label
+// shown for active alerts. Matches calendar-display badge style.
+// e.g. "begins Thu 6:00 PM"
+function formatFutureAlertLabel(alertProperties) {
+  var onset = alertProperties.onset ? new Date(alertProperties.onset) : null;
+  if (!onset) return '';
+  return 'begins ' + formatShortAlertTime(onset);
 }
 
 
