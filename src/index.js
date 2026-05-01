@@ -1665,7 +1665,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(13 * scale);
+  const timeFontSize  = Math.round(15 * scale);
   const tempFontSize  = Math.round(18 * scale);
   const precipFontSize = Math.round(12 * scale);
 
