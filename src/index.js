@@ -70,8 +70,8 @@ import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH
 
 // Display location
 const DISPLAY_CITY   = 'Fargo, ND';
-const LOCATION_LAT   =  46.8772;    // Used for radar center + sunrise/sunset math
-const LOCATION_LON   = -96.7898;
+const LOCATION_LAT   =  30.0802;    // Used for radar center + sunrise/sunset math
+const LOCATION_LON   = -94.1266;
 
 // Pre-computed map tile coordinates for Fargo at zoom 7.
 // Used by RADAR_MODE='image' to fetch transparent radar overlay tiles
@@ -82,7 +82,7 @@ const LOCATION_LON   = -96.7898;
 //   y = Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) +
 //       1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, zoom))
 const RADAR_TILE_ZOOM = 6;
-const RADAR_TILE_X    = 15;
+const RADAR_TILE_X    = 30;
 const RADAR_TILE_Y    = 26;
 
 // NWS grid parameters for Fargo, ND.
