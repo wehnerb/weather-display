@@ -1898,7 +1898,21 @@ function buildRadarImageHtml(radarFrames) {
         + 'transition:opacity 0.1s linear;" alt=""/>';
   }
 
-  html += '</div>';
+  html +=
+    '<div class="radar-legend">' +
+      '<div class="legend-title">dBZ</div>' +
+      '<div class="legend-bar"></div>' +
+      '<div class="legend-labels">' +
+        '<span>5</span><span>30</span><span>50</span><span>75</span>' +
+      '</div>' +
+    '</div>' +
+    '<div class="radar-stamp">' +
+      'RADAR · <span id="radar-stamp-time">--:-- --</span> CDT' +
+    '</div>' +
+    '<div class="loop-bar">' +
+      '<div id="radar-progress" class="loop-bar-fill"></div>' +
+    '</div>' +
+    '</div>';
 
   // Animation script
   html +=
