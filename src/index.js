@@ -73,6 +73,18 @@ const DISPLAY_CITY   = 'Fargo, ND';
 const LOCATION_LAT   =  46.8772;    // Used for radar center + sunrise/sunset math
 const LOCATION_LON   = -96.7898;
 
+// Pre-computed map tile coordinates for Fargo at zoom 7.
+// Used by RADAR_MODE='image' to fetch transparent radar overlay tiles
+// using the same tile-based endpoint as Leaflet (which returns transparent
+// PNGs rather than images with a white base map background).
+// If LOCATION_LAT/LON ever changes, recalculate with:
+//   x = Math.floor((lon + 180) / 360 * Math.pow(2, zoom))
+//   y = Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) +
+//       1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, zoom))
+const RADAR_TILE_ZOOM = 7;
+const RADAR_TILE_X    = 29;
+const RADAR_TILE_Y    = 45;
+
 // NWS grid parameters for Fargo, ND.
 // Verified via: https://api.weather.gov/points/46.8772,-96.7898
 // These values are static and do not differ between fire stations within Fargo.
@@ -863,8 +875,11 @@ async function fetchRainViewerFramesAsImages() {
     var frames = data.radar.past.slice(-RADAR_FRAME_COUNT);
 
     var results = await Promise.all(frames.map(async function(f) {
-      var url = host + f.path + '/512/7/' +
-        LOCATION_LAT + '/' + LOCATION_LON + '/2/1_0.png';
+      // Tile-based URL — matches Leaflet format and returns a transparent
+      // PNG overlay. The coordinate-based endpoint bakes in a white base
+      // map background making it unusable as a transparent overlay.
+      var url = host + f.path + '/512/' + RADAR_TILE_ZOOM +
+        '/' + RADAR_TILE_X + '/' + RADAR_TILE_Y + '/4/0_0.png';
       try {
         var imgRes = await fetchWithTimeout(url, {}, 8000);
         if (!imgRes.ok) return null;
