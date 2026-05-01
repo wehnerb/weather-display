@@ -1844,27 +1844,28 @@ function buildRadarScript(radarFrames) {
         '}' +
 
         'function showFrame(){' +
-          'var isLast=(frameIdx===RADAR_FRAMES.length-1);' +
-
-          // Swap: make buffer visible, hide active
-          'activeLayer.setOpacity(0);' +
+          // Show the current frame by making buffer visible and active hidden
           'bufferLayer.setOpacity(RADAR_OPACITY);' +
+          'activeLayer.setOpacity(0);' +
 
-          // Swap roles
+          // Swap roles — buffer becomes active (now visible)
           'var tmp=activeLayer;' +
           'activeLayer=bufferLayer;' +
           'bufferLayer=tmp;' +
 
           'updateTimestamp();' +
 
-          // Advance frame index
+          'var isLast=(frameIdx===RADAR_FRAMES.length-1);' +
+
+          // Advance to next frame
           'frameIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
 
-          // Preload next frame on the buffer layer
-          'var nextIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
-          'bufferLayer.setUrl(RADAR_FRAMES[nextIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
+          // Preload the upcoming frame on the now-hidden buffer layer
+          // Use frameIdx (already advanced) as the next frame to show
+          'bufferLayer.setUrl(RADAR_FRAMES[frameIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
 
           'if(isLast){' +
+            // Hold on the most recent frame, then restart from frame 0
             'setTimeout(function(){' +
               'map.invalidateSize();' +
               'setTimeout(showFrame,RADAR_FRAME_MS);' +
