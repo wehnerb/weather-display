@@ -81,9 +81,9 @@ const LOCATION_LON   = -96.7898;
 //   x = Math.floor((lon + 180) / 360 * Math.pow(2, zoom))
 //   y = Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) +
 //       1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, zoom))
-const RADAR_TILE_ZOOM = 7;
-const RADAR_TILE_X    = 29;
-const RADAR_TILE_Y    = 45;
+const RADAR_TILE_ZOOM = 6;
+const RADAR_TILE_X    = 14;
+const RADAR_TILE_Y    = 22;
 
 // NWS grid parameters for Fargo, ND.
 // Verified via: https://api.weather.gov/points/46.8772,-96.7898
