@@ -103,7 +103,7 @@ const RADAR_INIT_DELAY_MS = 1000;
 // 'image'   — Server-side fetched RainViewer frames on a static base map.
 //             Lower Pi resource usage. No Leaflet dependency.
 //             Switch to this mode if Leaflet has persistent issues on hardware.
-const RADAR_MODE = 'leaflet';
+const RADAR_MODE = 'image';
 const RADAR_OPACITY     =  0.3;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
