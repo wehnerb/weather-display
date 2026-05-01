@@ -1892,7 +1892,7 @@ function buildRadarImageHtml(radarFrames) {
   var frameCount = frames.length;
 
   if (frameCount === 0) {
-    return '<div id="radar-image-wrap" style="position:relative;width:100%;height:100%;' +
+    return '<div id="radar-image-wrap" style="position:absolute;top:0;left:0;right:0;bottom:0;' +
       'background:#111111;display:flex;align-items:center;justify-content:center;">'
       + '<span style="color:rgba(255,255,255,0.45);font-size:14px;">Radar data unavailable</span>'
       + '</div>';
@@ -1900,7 +1900,7 @@ function buildRadarImageHtml(radarFrames) {
 
   // Base map image — always visible underneath radar frames
   var html =
-    '<div id="radar-image-wrap" style="position:relative;width:100%;height:100%;overflow:hidden;">'
+    '<div id="radar-image-wrap" style="position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;">'
     + '<img src="' + RADAR_BASEMAP_URL + '" '
       + 'style="position:absolute;top:0;left:0;width:100%;height:100%;'
       + 'object-fit:cover;object-position:center;" alt=""/>';
@@ -2177,7 +2177,7 @@ function buildFullPageStyles(width, height, condWidth, stripH, scale, useSolidBg
     baseStyles(width, height, useSolidBg) +
     'body{display:flex;flex-direction:column;}' +
     '.main-row{flex:1;min-height:0;display:flex;flex-direction:row;}' +
-    '.radar-panel{flex:1;min-width:0;position:relative;}' +
+    '.radar-panel{flex:1;min-width:0;position:relative;overflow:hidden;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
     '.hourly-strip{height:' + stripH + 'px;}'
   );
@@ -2188,7 +2188,7 @@ function buildRadarOnlyStyles(width, height, scale, darkBg) {
   return (
     baseStyles(width, height, darkBg) +
     'body{display:flex;flex-direction:column;}' +
-    '.radar-wrap{flex:1;min-height:0;position:relative;}'
+    '.radar-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}'
   );
 }
 
