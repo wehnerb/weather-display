@@ -21,6 +21,9 @@ name                = "weather-display"
 main                = "src/index.js"
 compatibility_date  = "2024-09-23"
 
+[assets]
+directory = "./public"
+
 # Non-sensitive configuration exposed as environment variables.
 # NWS requires a descriptive User-Agent string identifying the application
 # and a contact address for all API requests.
