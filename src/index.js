@@ -116,7 +116,7 @@ const RADAR_INIT_DELAY_MS = 1000;
 //             Lower Pi resource usage. No Leaflet dependency.
 //             Switch to this mode if Leaflet has persistent issues on hardware.
 const RADAR_MODE = 'image';
-const RADAR_OPACITY     =  0.3;  // radar overlay opacity (0–1)
+const RADAR_OPACITY     =  0.5;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
 const ICON_SIZE_LG   = 45;   // current conditions icon (large)
