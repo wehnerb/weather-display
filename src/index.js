@@ -1915,7 +1915,7 @@ function baseStyles(width, height, useSolidBg) {
       'background:' + CARD_ELEVATED + ';flex-shrink:0;border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
     '.temp-side{flex:1;}' +
-    '.temp-main{display:flex;align-items:flex-end;line-height:1;}' +
+    '.temp-main{display:flex;align-items:flex-end;line-height:1;font-variant-numeric:tabular-nums;}' +
     '.temp-val{font-weight:600;color:#fff;}' +
     '.temp-unit{color:rgba(255,255,255,0.45);margin-bottom:4px;margin-left:2px;}' +
     '.feels{color:' + TEXT_SECONDARY + ';margin-top:4px;}' +
@@ -1942,7 +1942,7 @@ function baseStyles(width, height, useSolidBg) {
     '.stat-span2{grid-column:span 2;border-right:none;}' +
     '.stat-lbl{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.05em;}' +
     '.stat-val{color:' + TEXT_PRIMARY + ';margin-top:1px;white-space:nowrap;' +
-      'overflow:hidden;text-overflow:ellipsis;}' +
+      'overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}' +
 
     // Sunrise / sunset row
     '.sun-row{' +
@@ -1979,7 +1979,7 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-wind{color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;' +
       'text-overflow:ellipsis;margin-top:2px;}' +
     '.fc-precip{color:#4db8ff;font-weight:600;white-space:nowrap;}' +
-    '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;}' +
+    '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}' +
     '.fc-sep{color:' + TEXT_TERTIARY + ';margin:0 2px;}' +
     '.fc-badge{white-space:nowrap;}' +
     '.fc-right{' +
@@ -2024,11 +2024,13 @@ function baseStyles(width, height, useSolidBg) {
       'grid-column:1;grid-row:2;' +
       'color:#fff;font-weight:600;' +
       'align-self:center;justify-self:center;' +
+      'font-variant-numeric:tabular-nums;' +
     '}' +
     '.hour-precip{' +
       'grid-column:2;grid-row:2;' +
       'color:#4db8ff;' +
       'display:flex;align-items:center;justify-content:center;' +
+      'font-variant-numeric:tabular-nums;' +
     '}' +
     '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
       'color:' + TEXT_TERTIARY + ';font-size:12px;}'
