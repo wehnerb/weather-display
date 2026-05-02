@@ -70,7 +70,7 @@ import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH
 
 // Display location
 const DISPLAY_CITY   = 'Fargo, ND';
-const LOCATION_LAT   =  46.8772;    // Used for radar center + sunrise/sunset math
+const LOCATION_LAT   =  46.8772;    // Fargo, ND — radar center + sunrise/sunset math
 const LOCATION_LON   = -96.7898;
 
 // NWS grid parameters for Fargo, ND.
@@ -91,7 +91,13 @@ const RADAR_FRAME_COUNT = 18;    // max number of radar frames to animate
 const RADAR_ZOOM        =  8;    // Leaflet zoom level (~75 mi radius); adjust after hardware test
 const RADAR_FRAME_MS    =  200;  // milliseconds per historical frame
 const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before looping
-const RADAR_OPACITY     =  0.7;  // radar overlay opacity (0–1)
+// Milliseconds to wait after DOMContentLoaded before initializing the
+// Leaflet radar map. On Raspberry Pi hardware without GPU acceleration,
+// layout may not be complete when DOMContentLoaded fires, causing Leaflet
+// to measure a zero or incorrect map container size and only load one tile.
+// Increase if radar still partially loads on hardware; 250ms is a safe default.
+const RADAR_INIT_DELAY_MS = 1000;
+const RADAR_OPACITY     =  0.4;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
 const ICON_SIZE_LG   = 45;   // current conditions icon (large)
@@ -494,7 +500,7 @@ export default {
         needsWeather ? fetchNwsHourly(env.NWS_USER_AGENT)       : Promise.resolve(null),
         fetchNwsAlerts(env.NWS_USER_AGENT),
         needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY) : Promise.resolve(null),
-        needsRadar   ? fetchRainViewerFrames()             : Promise.resolve(null),
+        needsRadar ? fetchRainViewerFrames() : Promise.resolve(null),
       ]);
 
       // Process raw API responses into display-ready objects.
@@ -523,6 +529,7 @@ export default {
       const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
+
       const aqi      = processAqi(aqiData);
       const sunTimes = calcSunriseSunset(now, LOCATION_LAT, LOCATION_LON);
 
@@ -1052,8 +1059,11 @@ function processAlerts(features, now) {
 //   contentHeight — remaining pixels available for all other content
 //   contentScale  — scale factor derived from contentHeight vs full height,
 //                   applied proportionally to font sizes, icon sizes, strip height
-function calcEffectiveHeight(activeAlerts, totalHeight, baseScale) {
-  var alertCount   = activeAlerts ? Math.min(activeAlerts.length, MAX_DISPLAY_ALERTS) : 0;
+function calcEffectiveHeight(activeAlerts, futureAlerts, totalHeight, baseScale) {
+  var activeCount  = activeAlerts ? Math.min(activeAlerts.length, MAX_DISPLAY_ALERTS) : 0;
+  var remaining    = MAX_DISPLAY_ALERTS - activeCount;
+  var futureCount  = (remaining > 0 && futureAlerts) ? Math.min(futureAlerts.length, remaining) : 0;
+  var alertCount   = activeCount + futureCount;
   var alertsHeight = alertCount * ALERT_BANNER_HEIGHT_PX;
   var contentHeight = totalHeight - alertsHeight;
   var heightRatio   = alertCount > 0 ? contentHeight / totalHeight : 1;
@@ -1215,11 +1225,11 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
 
   const scale = isFull ? 1.18 : 1.0;
 
-  const eff         = calcEffectiveHeight(alerts.active, height, scale);
+  const eff         = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
   const activeAlerts = alerts.active ? alerts.active.slice(0, eff.alertCount) : [];
   const effectiveStripH = Math.round(HOURLY_HEIGHT[layoutKey] * (eff.contentScale / scale));
 
-  const alertsHtml   = buildAlertBannersHtml(alerts.active, width, scale, eff.alertCount);
+  const alertsHtml   = buildAlertBannersHtml(alerts.active, alerts.future, width, scale, eff.alertCount);
   const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
     wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, effectiveStripH, eff.contentScale, isFull
@@ -1252,9 +1262,9 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const { width, height } = layout;
   const scale = 1.0;
 
-  const eff = calcEffectiveHeight(alerts.active, height, scale);
+  const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
+  const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
   const radarHtml  = buildRadarPanelHtml(width, scale);
 
   const styles = buildRadarOnlyStyles(width, height, scale, darkBg);
@@ -1281,9 +1291,9 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
-  const eff = calcEffectiveHeight(alerts.active, height, scale);
+  const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, width, eff.contentScale, eff.alertCount);
+  const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
   const condHtml   = buildConditionsPanelHtml(
     wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, eff.contentScale, false
   );
@@ -1307,12 +1317,25 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
 // Format matches calendar-display: "⚠ EVENT NAME — until Day H:MM AM"
 // The NWS p.headline field is intentionally omitted — it contains the full
 // "issued [date] at [time] by NWS [office]" string which overflows the banner.
-function buildAlertBannersHtml(activeAlerts, width, scale, maxAlerts) {
-  if (!activeAlerts || activeAlerts.length === 0) return '';
+function buildAlertBannersHtml(activeAlerts, futureAlerts, width, scale, maxAlerts) {
+  var max          = (maxAlerts !== undefined) ? maxAlerts : (activeAlerts ? activeAlerts.length : 0);
+  var alertsToShow = activeAlerts ? activeAlerts.slice(0, max) : [];
+  var remaining    = max - alertsToShow.length;
 
-  var alertsToShow = (maxAlerts !== undefined)
-    ? activeAlerts.slice(0, maxAlerts)
-    : activeAlerts;
+  // Fill remaining slots with future alerts sorted by onset time (soonest first).
+  if (remaining > 0 && futureAlerts && futureAlerts.length > 0) {
+    var sortedFuture = futureAlerts.slice().sort(function(a, b) {
+      var aOnset = a.onset ? new Date(a.onset) : new Date(0);
+      var bOnset = b.onset ? new Date(b.onset) : new Date(0);
+      return aOnset - bOnset;
+    });
+    var futureToShow = sortedFuture.slice(0, remaining);
+    alertsToShow = alertsToShow.concat(futureToShow.map(function(p) {
+      return Object.assign({}, p, { _isFuture: true });
+    }));
+  }
+
+  if (alertsToShow.length === 0) return '';
 
   const fontSize = Math.round(18 * scale);
   const padV     = Math.round(9  * scale);
@@ -1326,11 +1349,16 @@ function buildAlertBannersHtml(activeAlerts, width, scale, maxAlerts) {
     // for the "until" time, consistent with the calendar-display alert pattern.
     const endDate = p.ends ? new Date(p.ends) : (p.expires ? new Date(p.expires) : null);
 
-    // Build the banner text as a single string: "⚠ EVENT — until Day H:MM AM"
+    // Build the banner text as a single string: "⚠ EVENT — until/begins Day H:MM AM"
     // Matches the calendar-display alert format — no headline body text.
-    const txt = '\u26A0 ' +
-      (p.event || 'Weather Alert') +
-      (endDate ? ' \u2014 until ' + formatShortAlertTime(endDate) : '');
+    var timingLabel;
+    if (p._isFuture) {
+      timingLabel = formatFutureAlertLabel(p);
+      timingLabel = timingLabel ? ' \u2014 ' + timingLabel : '';
+    } else {
+      timingLabel = endDate ? ' \u2014 until ' + formatShortAlertTime(endDate) : '';
+    }
+    const txt = '\u26A0 ' + (p.event || 'Weather Alert') + timingLabel;
 
     html +=
       '<div class="alert-banner ' + cls + '" style="' +
@@ -1362,7 +1390,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
   // Timestamp and attribution overlaid at the bottom of the map.
   const stampHtml =
     '<div class="radar-stamp" style="font-size:' + stampFontSize + 'px;">' +
-      'RADAR · <span id="radar-time">--:-- --</span> CDT' +
+      'RADAR · <span id="radar-stamp-time">--:-- --</span> CDT' +
     '</div>' +
     '<div class="radar-credit">© OpenStreetMap/CARTO · RainViewer</div>';
 
@@ -1557,17 +1585,21 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
             : ''
           ) +
         '</div>' +
-        (precip
-          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
-              escapeHtml(precip) + '</div>'
-          : '<div class="fc-precip"></div>'
-        ) +
-        '<div class="fc-temp" style="font-size:' + fcTempFont + 'px;">' +
-          escapeHtml(hi) +
-          '<span class="fc-sep">/</span>' +
-          escapeHtml(lo) +
+        '<div class="fc-right">' +
+          '<div class="fc-right-top">' +
+            (precip
+              ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
+                  escapeHtml(precip) + '</div>'
+              : '<div class="fc-precip"></div>'
+            ) +
+            '<div class="fc-temp" style="font-size:' + fcTempFont + 'px;">' +
+              escapeHtml(hi) +
+              '<span class="fc-sep">/</span>' +
+              escapeHtml(lo) +
+            '</div>' +
+          '</div>' +
+          (badgeHtml ? '<div class="fc-badge">' + badgeHtml + '</div>' : '') +
         '</div>' +
-        (badgeHtml ? '<div class="fc-badge">' + badgeHtml + '</div>' : '') +
       '</div>';
   }
 
@@ -1591,7 +1623,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     return '<div class="hourly-empty">Hourly data unavailable</div>';
   }
 
-  const timeFontSize  = Math.round(13 * scale);
+  const timeFontSize  = Math.round(16 * scale);
   const tempFontSize  = Math.round(18 * scale);
   const precipFontSize = Math.round(12 * scale);
 
@@ -1671,84 +1703,122 @@ function buildRadarScript(radarFrames) {
 
   return (
     '<script>' +
-    'var RADAR_LAT='      + LOCATION_LAT   + ';' +
-    'var RADAR_LON='      + LOCATION_LON   + ';' +
-    'var RADAR_ZOOM='     + RADAR_ZOOM     + ';' +
-    'var RADAR_OPACITY='  + RADAR_OPACITY  + ';' +
-    'var RADAR_FRAME_MS=' + RADAR_FRAME_MS + ';' +
-    'var RADAR_HOLD_MS='  + RADAR_HOLD_MS  + ';' +
-    'var RADAR_FRAMES='   + framesJson     + ';' +
+    'var RADAR_LAT='            + LOCATION_LAT       + ';' +
+    'var RADAR_LON='            + LOCATION_LON       + ';' +
+    'var RADAR_ZOOM='           + RADAR_ZOOM         + ';' +
+    'var RADAR_OPACITY='        + RADAR_OPACITY      + ';' +
+    'var RADAR_FRAME_MS='       + RADAR_FRAME_MS     + ';' +
+    'var RADAR_HOLD_MS='        + RADAR_HOLD_MS      + ';' +
+    'var RADAR_INIT_DELAY_MS='  + RADAR_INIT_DELAY_MS + ';' +
+    'var RADAR_FRAMES='         + framesJson         + ';' +
 
     'document.addEventListener("DOMContentLoaded",function(){' +
+      'setTimeout(function(){' +
 
-      // Create the Leaflet map. All interaction disabled — passive display only.
-      'var map=L.map("radar-map",{' +
-        'center:[RADAR_LAT,RADAR_LON],' +
-        'zoom:RADAR_ZOOM,' +
-        'zoomControl:false,' +
-        'attributionControl:true,' +
-        'dragging:false,' +
-        'scrollWheelZoom:false,' +
-        'doubleClickZoom:false,' +
-        'touchZoom:false,' +
-        'keyboard:false' +
-      '});' +
+        'var map=L.map("radar-map",{' +
+          'center:[RADAR_LAT,RADAR_LON],' +
+          'zoom:RADAR_ZOOM,' +
+          'zoomControl:false,' +
+          'attributionControl:true,' +
+          'dragging:false,' +
+          'scrollWheelZoom:false,' +
+          'doubleClickZoom:false,' +
+          'touchZoom:false,' +
+          'keyboard:false' +
+        '});' +
 
-      // CartoDB Dark Matter base tiles — near-black background with subtle grey
-      // road and label detail. Improves radar colour legibility on dark station
-      // displays compared to the default light OSM tiles. Free tier; no API key
-      // required. Attribution covers both OSM data and CARTO styling.
-      // {r} enables retina/HiDPI tiles automatically where supported.
-      'L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
-        'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>OpenStreetMap</a> contributors © <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
-        'maxZoom:19' +
-      '}).addTo(map);' +
+        'var baseLayer=L.tileLayer(' +
+          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{' +
+          'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>' +
+            'OpenStreetMap</a> contributors ' +
+            '© <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
+          'maxZoom:19,' +
+          'keepBuffer:2' +
+        '});' +
+        'baseLayer.addTo(map);' +
 
-      // Show fallback message if server-side frame fetch failed.
-      'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
-        'var el=document.getElementById("radar-unavailable");' +
-        'if(el)el.style.display="flex";' +
-        'return;' +
-      '}' +
+        'map.invalidateSize();' +
 
-      // Pre-create one tile layer per frame, all hidden at opacity 0.
-      // Adding them immediately triggers background tile pre-loading.
-      // 512px tiles with zoomOffset:-1: visual zoom 8 → server zoom 7.
-      // This is required because RainViewer 256px tiles cap at zoom 6.
-      'var layers=RADAR_FRAMES.map(function(f){' +
-        'return L.tileLayer(f.tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+        'if(!RADAR_FRAMES||!RADAR_FRAMES.length){' +
+          'var el=document.getElementById("radar-unavailable");' +
+          'if(el)el.style.display="flex";' +
+          'return;' +
+        '}' +
+
+        // Two alternating radar layers — double buffer.
+        // layerA shows the current frame; layerB preloads the next frame.
+        // They swap roles each frame so one is always visible while the
+        // other loads invisibly in the background.
+        'var layerA=L.tileLayer(RADAR_FRAMES[0].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
+          'opacity:RADAR_OPACITY,' +
+          'tileSize:512,' +
+          'zoomOffset:-1,' +
+          'keepBuffer:0' +
+        '});' +
+        'var layerB=L.tileLayer(RADAR_FRAMES[Math.min(1,RADAR_FRAMES.length-1)].tileBase+"/512/{z}/{x}/{y}/4/0_0.png",{' +
           'opacity:0,' +
           'tileSize:512,' +
-          'zoomOffset:-1' +
+          'zoomOffset:-1,' +
+          'keepBuffer:0' +
         '});' +
-      '});' +
-      'layers.forEach(function(l){l.addTo(map);});' +
+        'layerA.addTo(map);' +
+        'layerB.addTo(map);' +
 
-      'var frameIdx=0;' +
-      'var progressEl=document.getElementById("radar-progress");' +
-      'var timeEl=document.getElementById("radar-time");' +
+        'var frameIdx=0;' +
+        'var activeLayer=layerA;' +
+        'var bufferLayer=layerB;' +
+        'var progressEl=document.getElementById("radar-progress");' +
+        'var timeEl=document.getElementById("radar-stamp-time");' +
 
-      'function showFrame(){' +
-        'layers.forEach(function(l,i){' +
-          'l.setOpacity(i===frameIdx?RADAR_OPACITY:0);' +
-        '});' +
-        // RainViewer times are Unix seconds — multiply by 1000 for JS Date.
-        'if(timeEl){' +
-          'var ts=new Date(RADAR_FRAMES[frameIdx].time*1000);' +
-          'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
-            'timeZone:"America/Chicago",' +
-            'hour:"numeric",minute:"2-digit",hour12:true' +
-          '});' +
+        'function updateTimestamp(){' +
+          'if(timeEl){' +
+            'var ts=new Date(RADAR_FRAMES[frameIdx].time*1000);' +
+            'timeEl.textContent=ts.toLocaleTimeString("en-US",{' +
+              'timeZone:"America/Chicago",' +
+              'hour:"numeric",minute:"2-digit",hour12:true' +
+            '});' +
+          '}' +
+          'if(progressEl){' +
+            'progressEl.style.width=((frameIdx+1)/RADAR_FRAMES.length*100)+"%";' +
+          '}' +
         '}' +
-        'if(progressEl){' +
-          'progressEl.style.width=((frameIdx+1)/layers.length*100)+"%";' +
-        '}' +
-        'var isLast=(frameIdx===layers.length-1);' +
-        'frameIdx=(frameIdx+1)%layers.length;' +
-        'setTimeout(showFrame,isLast?RADAR_HOLD_MS:RADAR_FRAME_MS);' +
-      '}' +
 
-      'setTimeout(showFrame,RADAR_FRAME_MS);' +
+        'function showFrame(){' +
+          // Show the current frame by making buffer visible and active hidden
+          'bufferLayer.setOpacity(RADAR_OPACITY);' +
+          'activeLayer.setOpacity(0);' +
+
+          // Swap roles — buffer becomes active (now visible)
+          'var tmp=activeLayer;' +
+          'activeLayer=bufferLayer;' +
+          'bufferLayer=tmp;' +
+
+          'updateTimestamp();' +
+
+          'var isLast=(frameIdx===RADAR_FRAMES.length-1);' +
+
+          // Advance to next frame
+          'frameIdx=(frameIdx+1)%RADAR_FRAMES.length;' +
+
+          // Preload the upcoming frame on the now-hidden buffer layer
+          // Use frameIdx (already advanced) as the next frame to show
+          'bufferLayer.setUrl(RADAR_FRAMES[frameIdx].tileBase+"/512/{z}/{x}/{y}/4/0_0.png");' +
+
+          'if(isLast){' +
+            // Hold on the most recent frame, then restart from frame 0
+            'setTimeout(function(){' +
+              'map.invalidateSize();' +
+              'setTimeout(showFrame,RADAR_FRAME_MS);' +
+            '},RADAR_HOLD_MS);' +
+          '} else {' +
+            'setTimeout(showFrame,RADAR_FRAME_MS);' +
+          '}' +
+        '}' +
+
+        'updateTimestamp();' +
+        'setTimeout(showFrame,RADAR_FRAME_MS);' +
+
+      '},RADAR_INIT_DELAY_MS);' +
     '});' +
     '</script>'
   );
@@ -1883,7 +1953,7 @@ function baseStyles(width, height, useSolidBg) {
     '.forecast{flex:1;display:flex;flex-direction:column;min-height:0;}' +
     '.fc-row{' +
       'flex:1;display:grid;' +
-      'grid-template-columns:50px auto 1fr auto auto auto;' +
+      'grid-template-columns:50px auto 1fr auto;' +
       'align-items:center;gap:6px;' +
       'padding:0 10px;' +
       'border-bottom:1px solid ' + BORDER_SUBTLE + ';min-height:0;' +
@@ -1906,6 +1976,12 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;}' +
     '.fc-sep{color:' + TEXT_TERTIARY + ';margin:0 2px;}' +
     '.fc-badge{white-space:nowrap;}' +
+    '.fc-right{' +
+      'display:flex;flex-direction:column;align-items:flex-end;gap:3px;' +
+    '}' +
+    '.fc-right-top{' +
+      'display:flex;flex-direction:row;align-items:center;gap:6px;' +
+    '}' +
     '.alert-badge{display:inline-block;padding:1px 5px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.04em;}' +
     '.badge-warning {background:#cc2222;color:#fff;}' +
@@ -1959,7 +2035,7 @@ function buildFullPageStyles(width, height, condWidth, stripH, scale, useSolidBg
     baseStyles(width, height, useSolidBg) +
     'body{display:flex;flex-direction:column;}' +
     '.main-row{flex:1;min-height:0;display:flex;flex-direction:row;}' +
-    '.radar-panel{flex:1;min-width:0;position:relative;}' +
+    '.radar-panel{flex:1;min-width:0;position:relative;overflow:hidden;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
     '.hourly-strip{height:' + stripH + 'px;}'
   );
@@ -1970,7 +2046,7 @@ function buildRadarOnlyStyles(width, height, scale, darkBg) {
   return (
     baseStyles(width, height, darkBg) +
     'body{display:flex;flex-direction:column;}' +
-    '.radar-wrap{flex:1;min-height:0;position:relative;}'
+    '.radar-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}'
   );
 }
 
@@ -2073,6 +2149,16 @@ function formatShortAlertTime(date) {
     timeZone: 'America/Chicago',
     weekday: 'short', hour: 'numeric', minute: '2-digit', hour12: true,
   }).format(date);
+}
+
+// Formats the onset time label for a future alert banner.
+// Returns "begins Day H:MM AM" — used in place of the "until" label
+// shown for active alerts. Matches calendar-display badge style.
+// e.g. "begins Thu 6:00 PM"
+function formatFutureAlertLabel(alertProperties) {
+  var onset = alertProperties.onset ? new Date(alertProperties.onset) : null;
+  if (!onset) return '';
+  return 'begins ' + formatShortAlertTime(onset);
 }
 
 
