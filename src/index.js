@@ -73,18 +73,6 @@ const DISPLAY_CITY   = 'Fargo, ND';
 const LOCATION_LAT   =  46.8772;    // Fargo, ND — radar center + sunrise/sunset math
 const LOCATION_LON   = -96.7898;
 
-// Pre-computed map tile coordinates for Fargo at zoom 7.
-// Used by RADAR_MODE='image' to fetch transparent radar overlay tiles
-// using the same tile-based endpoint as Leaflet (which returns transparent
-// PNGs rather than images with a white base map background).
-// If LOCATION_LAT/LON ever changes, recalculate with:
-//   x = Math.floor((lon + 180) / 360 * Math.pow(2, zoom))
-//   y = Math.floor((1 - Math.log(Math.tan(lat*Math.PI/180) +
-//       1/Math.cos(lat*Math.PI/180)) / Math.PI) / 2 * Math.pow(2, zoom))
-const RADAR_TILE_ZOOM = 6;
-const RADAR_TILE_X    = 30;
-const RADAR_TILE_Y    = 26;
-
 // NWS grid parameters for Fargo, ND.
 // Verified via: https://api.weather.gov/points/46.8772,-96.7898
 // These values are static and do not differ between fire stations within Fargo.
@@ -109,13 +97,6 @@ const RADAR_HOLD_MS     = 2500;  // milliseconds to hold the latest frame before
 // to measure a zero or incorrect map container size and only load one tile.
 // Increase if radar still partially loads on hardware; 250ms is a safe default.
 const RADAR_INIT_DELAY_MS = 1000;
-// Radar rendering mode.
-// 'leaflet' — Leaflet.js double-buffer tile map (default).
-//             Best geographic detail. May have memory issues on Pi hardware.
-// 'image'   — Server-side fetched RainViewer frames on a static base map.
-//             Lower Pi resource usage. No Leaflet dependency.
-//             Switch to this mode if Leaflet has persistent issues on hardware.
-const RADAR_MODE = 'leaflet';
 const RADAR_OPACITY     =  0.4;  // radar overlay opacity (0–1)
 
 // SVG icon sizes (px) — precomputed at module load; changing requires re-deploy
@@ -169,17 +150,6 @@ const WIND_STALE_MAX_HOURS = 2;
 const TEMP_MIN_PLAUSIBLE_F = -80;
 const TEMP_MAX_PLAUSIBLE_F = 140;
 
-
-// Base map image for RADAR_MODE = 'image'.
-// CartoDB Dark Matter map centered on Fargo, ND at zoom 7.
-// Pre-encoded as base64 PNG — no runtime fetch required.
-// Captured from the Leaflet radar panel at full layout.
-// To update: recapture from the staging URL, resize to 800x670,
-// base64 encode, and replace this string.
-// URL path for the radar base map static asset.
-// Served by Cloudflare Workers Assets from public/basemap.png.
-// To update: replace public/basemap.png in the repo and redeploy.
-const RADAR_BASEMAP_URL = '/basemap.png';
 
 // =============================================================================
 // SVG WEATHER ICONS — precomputed at module load (zero cost per request)
@@ -530,7 +500,7 @@ export default {
         needsWeather ? fetchNwsHourly(env.NWS_USER_AGENT)       : Promise.resolve(null),
         fetchNwsAlerts(env.NWS_USER_AGENT),
         needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY) : Promise.resolve(null),
-        needsRadar ? (RADAR_MODE === 'image' ? fetchRainViewerFramesAsImages() : fetchRainViewerFrames()) : Promise.resolve(null),
+        needsRadar ? fetchRainViewerFrames() : Promise.resolve(null),
       ]);
 
       // Process raw API responses into display-ready objects.
@@ -559,41 +529,6 @@ export default {
       const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
-
-      // ===== TEMPORARY TEST ALERTS — REMOVE BEFORE MERGE TO MAIN =====
-      // Tests future alert banners via ?testalerts=N&testfuture=N parameters.
-      // ?testalerts=N  — injects N active alerts (max MAX_DISPLAY_ALERTS)
-      // ?testfuture=N  — injects N future alerts (max MAX_DISPLAY_ALERTS)
-      // Both can be combined: ?testalerts=1&testfuture=2
-      if (url.searchParams.get('testalerts') || url.searchParams.get('testfuture')) {
-        var activeCount  = Math.min(parseInt(url.searchParams.get('testalerts') || '0', 10), MAX_DISPLAY_ALERTS);
-        var futureCount  = Math.min(parseInt(url.searchParams.get('testfuture') || '0', 10), MAX_DISPLAY_ALERTS);
-        var activeEvents = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Winter Storm Warning'];
-        var futureEvents = ['Wind Advisory', 'Freeze Watch', 'Dense Fog Advisory'];
-        var activeSev    = ['Extreme', 'Severe', 'Moderate'];
-        var testActive   = [];
-        var testFuture   = [];
-        for (var ta = 0; ta < activeCount; ta++) {
-          testActive.push({
-            event:    activeEvents[ta] || 'Weather Alert',
-            severity: activeSev[ta]    || 'Moderate',
-            ends:     new Date(Date.now() + 3600000).toISOString(),
-            expires:  new Date(Date.now() + 3600000).toISOString(),
-          });
-        }
-        for (var tf = 0; tf < futureCount; tf++) {
-          testFuture.push({
-            event:    futureEvents[tf] || 'Weather Alert',
-            severity: 'Minor',
-            onset:    new Date(Date.now() + (tf + 1) * 7200000).toISOString(),
-            ends:     new Date(Date.now() + (tf + 1) * 7200000 + 3600000).toISOString(),
-            expires:  new Date(Date.now() + (tf + 1) * 7200000 + 3600000).toISOString(),
-          });
-        }
-        if (testActive.length > 0) alerts.active = testActive;
-        if (testFuture.length > 0) alerts.future = testFuture;
-      }
-      // ===== END TEMPORARY TEST ALERTS =====
 
       const aqi      = processAqi(aqiData);
       const sunTimes = calcSunriseSunset(now, LOCATION_LAT, LOCATION_LON);
@@ -889,56 +824,6 @@ async function fetchRainViewerFrames() {
     return frames.length > 0 ? frames : null;
   } catch (e) {
     console.error('RainViewer error:', e);
-    return null;
-  }
-}
-
-
-// Fetches RainViewer radar frames as base64-encoded PNG images for image mode.
-// Each frame is fetched as a single coordinate-based image covering the
-// Fargo area — no tile stitching required.
-// Returns array of { time, b64 } objects, or null on failure.
-async function fetchRainViewerFramesAsImages() {
-  try {
-    var apiRes = await fetchWithTimeout(
-      'https://api.rainviewer.com/public/weather-maps.json', {}, 8000
-    );
-    if (!apiRes.ok) {
-      console.error('RainViewer weather-maps.json fetch failed: ' + apiRes.status);
-      return null;
-    }
-    var data = await apiRes.json();
-    if (!data || !data.radar || !data.radar.past) return null;
-
-    var host   = data.host;
-    var frames = data.radar.past.slice(-RADAR_FRAME_COUNT);
-
-    var results = await Promise.all(frames.map(async function(f) {
-      // Tile-based URL — matches Leaflet format and returns a transparent
-      // PNG overlay. The coordinate-based endpoint bakes in a white base
-      // map background making it unusable as a transparent overlay.
-      var url = host + f.path + '/512/' + RADAR_TILE_ZOOM +
-        '/' + RADAR_TILE_X + '/' + RADAR_TILE_Y + '/4/0_0.png';
-      try {
-        var imgRes = await fetchWithTimeout(url, {}, 8000);
-        if (!imgRes.ok) return null;
-        var buf    = await imgRes.arrayBuffer();
-        var bytes  = new Uint8Array(buf);
-        var binary = '';
-        for (var i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        return { time: f.time, b64: 'data:image/png;base64,' + btoa(binary) };
-      } catch (e) {
-        console.error('RainViewer frame fetch error:', e && e.message ? e.message : e);
-        return null;
-      }
-    }));
-
-    var valid = results.filter(Boolean);
-    return valid.length > 0 ? valid : null;
-  } catch (e) {
-    console.error('fetchRainViewerFramesAsImages error:', e && e.message ? e.message : e);
     return null;
   }
 }
@@ -1345,9 +1230,7 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
   const effectiveStripH = Math.round(HOURLY_HEIGHT[layoutKey] * (eff.contentScale / scale));
 
   const alertsHtml   = buildAlertBannersHtml(alerts.active, alerts.future, width, scale, eff.alertCount);
-  const radarHtml    = RADAR_MODE === 'image'
-    ? buildRadarImageHtml(radarFrames)
-    : buildRadarPanelHtml(radarWidth, scale);
+  const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
     wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, effectiveStripH, eff.contentScale, isFull
   );
@@ -1363,13 +1246,12 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
     '</div>' +
     '<div class="hourly-strip">' + hourlyHtml + '</div>';
 
-  const headExtra = RADAR_MODE === 'leaflet'
-    ? '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
-      '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'
-    : '';
+  const headExtra =
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + (RADAR_MODE === 'image' ? '' : buildRadarScript(radarFrames)),
+    body + buildRadarScript(radarFrames),
     headExtra
   );
 }
@@ -1383,9 +1265,7 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
   const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
-  const radarHtml  = RADAR_MODE === 'image'
-    ? buildRadarImageHtml(radarFrames)
-    : buildRadarPanelHtml(width, scale);
+  const radarHtml  = buildRadarPanelHtml(width, scale);
 
   const styles = buildRadarOnlyStyles(width, height, scale, darkBg);
 
@@ -1393,13 +1273,12 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
     '<div class="alerts">' + alertsHtml + '</div>' +
     '<div class="radar-wrap">' + radarHtml + '</div>';
 
-  const headExtra = RADAR_MODE === 'leaflet'
-    ? '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
-      '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>'
-    : '';
+  const headExtra =
+    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + (RADAR_MODE === 'image' ? '' : buildRadarScript(radarFrames)),
+    body + buildRadarScript(radarFrames),
     headExtra
   );
 }
@@ -1943,95 +1822,6 @@ function buildRadarScript(radarFrames) {
     '});' +
     '</script>'
   );
-}
-
-
-// Builds the radar panel HTML for image mode (RADAR_MODE = 'image').
-// Returns self-contained HTML with embedded base64 images and a simple
-// CSS opacity animation loop. No Leaflet, no tile loading, no external JS.
-function buildRadarImageHtml(radarFrames) {
-  var frames   = radarFrames || [];
-  var frameCount = frames.length;
-
-  if (frameCount === 0) {
-    return '<div id="radar-image-wrap" style="position:absolute;top:0;left:0;right:0;bottom:0;' +
-      'background:#111111;display:flex;align-items:center;justify-content:center;">'
-      + '<span style="color:rgba(255,255,255,0.45);font-size:14px;">Radar data unavailable</span>'
-      + '</div>';
-  }
-
-  // Base map image — always visible underneath radar frames
-  var html =
-    '<div id="radar-image-wrap" style="position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;">'
-    + '<img src="' + RADAR_BASEMAP_URL + '" '
-      + 'style="position:absolute;top:0;left:0;width:100%;height:100%;'
-      + 'object-fit:cover;object-position:center;" alt=""/>';
-
-  // Radar frame images stacked on top
-  for (var i = 0; i < frameCount; i++) {
-    html +=
-      '<img id="rf-' + i + '" src="' + frames[i].b64 + '" '
-        + 'data-time="' + frames[i].time + '" '
-        + 'style="position:absolute;top:0;left:0;width:100%;height:100%;'
-        + 'object-fit:cover;object-position:center;'
-        + 'opacity:' + (i === 0 ? RADAR_OPACITY : 0) + ';'
-        + 'transition:opacity 0.1s linear;" alt=""/>';
-  }
-
-  html +=
-    '<div class="radar-legend">' +
-      '<div class="legend-title">dBZ</div>' +
-      '<div class="legend-bar"></div>' +
-      '<div class="legend-labels">' +
-        '<span>5</span><span>30</span><span>50</span><span>75</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="radar-stamp">' +
-      'RADAR · <span id="radar-stamp-time">--:-- --</span> CDT' +
-    '</div>' +
-    '<div class="loop-bar">' +
-      '<div id="radar-progress" class="loop-bar-fill"></div>' +
-    '</div>' +
-    '</div>';
-
-  // Animation script
-  html +=
-    '<script>'
-    + 'var RF_COUNT='       + frameCount    + ';'
-    + 'var RF_OPACITY='     + RADAR_OPACITY  + ';'
-    + 'var RF_FRAME_MS='    + RADAR_FRAME_MS + ';'
-    + 'var RF_HOLD_MS='     + RADAR_HOLD_MS  + ';'
-    + '(function(){'
-      + 'var idx=0;'
-      + 'var progressEl=document.getElementById("radar-progress");'
-      + 'var stampEl=document.getElementById("radar-stamp-time");'
-      + 'var imgs=[];'
-      + 'for(var i=0;i<RF_COUNT;i++){'
-        + 'imgs.push(document.getElementById("rf-"+i));'
-      + '}'
-      + 'function showFrame(){'
-        + 'var isLast=(idx===RF_COUNT-1);'
-        + 'for(var i=0;i<RF_COUNT;i++){'
-          + 'imgs[i].style.opacity=(i===idx?RF_OPACITY:0);'
-        + '}'
-        + 'if(progressEl){'
-          + 'progressEl.style.width=((idx+1)/RF_COUNT*100)+"%";'
-        + '}'
-        + 'if(stampEl){'
-          + 'var ts=new Date(parseInt(imgs[idx].dataset.time,10)*1000);'
-          + 'stampEl.textContent=ts.toLocaleTimeString("en-US",{'
-            + 'timeZone:"America/Chicago",'
-            + 'hour:"numeric",minute:"2-digit",hour12:true'
-          + '});'
-        + '}'
-        + 'idx=(idx+1)%RF_COUNT;'
-        + 'setTimeout(showFrame,isLast?RF_HOLD_MS:RF_FRAME_MS);'
-      + '}'
-      + 'setTimeout(showFrame,RF_FRAME_MS);'
-    + '}());'
-    + '</script>';
-
-  return html;
 }
 
 
