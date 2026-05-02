@@ -70,8 +70,8 @@ import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH
 
 // Display location
 const DISPLAY_CITY   = 'Fargo, ND';
-const LOCATION_LAT   =  30.0802;    // Used for radar center + sunrise/sunset math
-const LOCATION_LON   = -94.1266;
+const LOCATION_LAT   =  46.8772;    // Fargo, ND — radar center + sunrise/sunset math
+const LOCATION_LON   = -96.7898;
 
 // Pre-computed map tile coordinates for Fargo at zoom 7.
 // Used by RADAR_MODE='image' to fetch transparent radar overlay tiles
@@ -559,6 +559,42 @@ export default {
       const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
+
+      // ===== TEMPORARY TEST ALERTS — REMOVE BEFORE MERGE TO MAIN =====
+      // Tests future alert banners via ?testalerts=N&testfuture=N parameters.
+      // ?testalerts=N  — injects N active alerts (max MAX_DISPLAY_ALERTS)
+      // ?testfuture=N  — injects N future alerts (max MAX_DISPLAY_ALERTS)
+      // Both can be combined: ?testalerts=1&testfuture=2
+      if (url.searchParams.get('testalerts') || url.searchParams.get('testfuture')) {
+        var activeCount  = Math.min(parseInt(url.searchParams.get('testalerts') || '0', 10), MAX_DISPLAY_ALERTS);
+        var futureCount  = Math.min(parseInt(url.searchParams.get('testfuture') || '0', 10), MAX_DISPLAY_ALERTS);
+        var activeEvents = ['Tornado Warning', 'Severe Thunderstorm Warning', 'Winter Storm Warning'];
+        var futureEvents = ['Wind Advisory', 'Freeze Watch', 'Dense Fog Advisory'];
+        var activeSev    = ['Extreme', 'Severe', 'Moderate'];
+        var testActive   = [];
+        var testFuture   = [];
+        for (var ta = 0; ta < activeCount; ta++) {
+          testActive.push({
+            event:    activeEvents[ta] || 'Weather Alert',
+            severity: activeSev[ta]    || 'Moderate',
+            ends:     new Date(Date.now() + 3600000).toISOString(),
+            expires:  new Date(Date.now() + 3600000).toISOString(),
+          });
+        }
+        for (var tf = 0; tf < futureCount; tf++) {
+          testFuture.push({
+            event:    futureEvents[tf] || 'Weather Alert',
+            severity: 'Minor',
+            onset:    new Date(Date.now() + (tf + 1) * 7200000).toISOString(),
+            ends:     new Date(Date.now() + (tf + 1) * 7200000 + 3600000).toISOString(),
+            expires:  new Date(Date.now() + (tf + 1) * 7200000 + 3600000).toISOString(),
+          });
+        }
+        if (testActive.length > 0) alerts.active = testActive;
+        if (testFuture.length > 0) alerts.future = testFuture;
+      }
+      // ===== END TEMPORARY TEST ALERTS =====
+
       const aqi      = processAqi(aqiData);
       const sunTimes = calcSunriseSunset(now, LOCATION_LAT, LOCATION_LON);
 
