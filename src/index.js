@@ -1706,17 +1706,21 @@ function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
             : ''
           ) +
         '</div>' +
-        (precip
-          ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
-              escapeHtml(precip) + '</div>'
-          : '<div class="fc-precip"></div>'
-        ) +
-        '<div class="fc-temp" style="font-size:' + fcTempFont + 'px;">' +
-          escapeHtml(hi) +
-          '<span class="fc-sep">/</span>' +
-          escapeHtml(lo) +
+        '<div class="fc-right">' +
+          '<div class="fc-right-top">' +
+            (precip
+              ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
+                  escapeHtml(precip) + '</div>'
+              : '<div class="fc-precip"></div>'
+            ) +
+            '<div class="fc-temp" style="font-size:' + fcTempFont + 'px;">' +
+              escapeHtml(hi) +
+              '<span class="fc-sep">/</span>' +
+              escapeHtml(lo) +
+            '</div>' +
+          '</div>' +
+          (badgeHtml ? '<div class="fc-badge">' + badgeHtml + '</div>' : '') +
         '</div>' +
-        (badgeHtml ? '<div class="fc-badge">' + badgeHtml + '</div>' : '') +
       '</div>';
   }
 
@@ -2159,7 +2163,7 @@ function baseStyles(width, height, useSolidBg) {
     '.forecast{flex:1;display:flex;flex-direction:column;min-height:0;}' +
     '.fc-row{' +
       'flex:1;display:grid;' +
-      'grid-template-columns:50px auto 1fr auto auto auto;' +
+      'grid-template-columns:50px auto 1fr auto;' +
       'align-items:center;gap:6px;' +
       'padding:0 10px;' +
       'border-bottom:1px solid ' + BORDER_SUBTLE + ';min-height:0;' +
@@ -2182,6 +2186,12 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;}' +
     '.fc-sep{color:' + TEXT_TERTIARY + ';margin:0 2px;}' +
     '.fc-badge{white-space:nowrap;}' +
+    '.fc-right{' +
+      'display:flex;flex-direction:column;align-items:flex-end;gap:3px;' +
+    '}' +
+    '.fc-right-top{' +
+      'display:flex;flex-direction:row;align-items:center;gap:6px;' +
+    '}' +
     '.alert-badge{display:inline-block;padding:1px 5px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.04em;}' +
     '.badge-warning {background:#cc2222;color:#fff;}' +
