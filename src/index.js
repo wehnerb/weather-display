@@ -1135,6 +1135,16 @@ function alertSeverityClass(severity) {
   return 'alert-advisory';
 }
 
+// Returns the border color constant matching a given NWS alert severity.
+// Mirrors the border-left colors already applied by the alert CSS classes.
+function alertSeverityBorderColor(severity) {
+  if (!severity) return ALERT_ADVISORY_BORDER;
+  var s = severity.toLowerCase();
+  if (s === 'extreme' || s === 'severe') return ALERT_WARNING_BORDER;
+  if (s === 'moderate')                  return ALERT_WATCH_BORDER;
+  return ALERT_ADVISORY_BORDER;
+}
+
 // Returns the forecast badge severity class for CSS styling.
 function badgeSeverityClass(severity) {
   const s = (severity || '').toLowerCase();
@@ -1681,12 +1691,14 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
         var onsetDate = toLocalDateStr(onset);
         var endsDate  = toLocalDateStr(ends);
         if (onsetDate <= day.dateStr && endsDate >= day.dateStr) {
-          var cls = alertSeverityClass(p.severity);
+          var cls       = alertSeverityClass(p.severity);
+          var borderClr = alertSeverityBorderColor(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
               'font-size:' + alertBannerFont + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
+              'border-bottom:1px solid ' + borderClr + ';' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
             '">⚠ ' + escapeHtml(p.event || 'Alert') + '</div>';
           break;
@@ -1795,12 +1807,14 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
         var onsetDate = toLocalDateStr(onset);
         var endsDate  = toLocalDateStr(ends);
         if (onsetDate <= day.dateStr && endsDate >= day.dateStr) {
-          var cls = alertSeverityClass(p.severity);
+          var cls       = alertSeverityClass(p.severity);
+          var borderClr = alertSeverityBorderColor(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
               'font-size:' + alertBannerFont + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
+              'border-bottom:1px solid ' + borderClr + ';' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
             '">⚠ ' + escapeHtml(p.event || 'Alert') + '</div>';
           break;
