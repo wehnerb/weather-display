@@ -1508,7 +1508,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
         '</div>' +
         '<div style="display:flex;align-items:baseline;gap:4px;margin-top:' + Math.round(5 * scale) + 'px;">' +
           '<span style="color:' + TEXT_TERTIARY + ';font-size:' + feelsLblFont + 'px;font-weight:600;">Feels like</span>' +
-          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:800;">' + escapeHtml(feelsStr) + '</span>' +
+          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:400;">' + escapeHtml(feelsStr) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="hero-col" style="flex:0 0 20%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
