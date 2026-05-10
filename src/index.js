@@ -1,6 +1,6 @@
 import { fetchWithTimeout } from './shared/fetch-helpers.js';
 import { escapeHtml, sanitizeParam } from './shared/html.js';
-import { DARK_BG_COLOR, FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
+import { FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
 import { LAYOUTS } from './shared/layouts.js';
 import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH_BG, ALERT_WATCH_BORDER, ALERT_WATCH_TEXT, ALERT_ADVISORY_BG, ALERT_ADVISORY_BORDER, ALERT_ADVISORY_TEXT } from './shared/alert-colors.js';
 
@@ -12,6 +12,22 @@ const LO_TEMP_COLOR = '#80c8f0';  // tonight low temperature label and value
 // SOLAR_COLOR is used for sunrise/sunset displayed values and the hourly
 // temperature curve. Matches the gold already embedded in the sun SVG icons.
 const SOLAR_COLOR   = '#f0c040';
+
+// Display background — controls the page background color and how much of the
+// display hardware shows through. Adjust DISPLAY_BG_OPACITY between 0 (fully
+// transparent, hardware shows completely) and 1 (fully opaque, no hardware visible).
+// DISPLAY_BG_COLOR must be a 6-digit hex string (e.g. '#111111').
+const DISPLAY_BG_COLOR   = '#111111';
+const DISPLAY_BG_OPACITY = 0.92;
+
+// Builds the CSS background value for the page from DISPLAY_BG_COLOR and
+// DISPLAY_BG_OPACITY. Called once per request inside baseStyles().
+function displayBgCss() {
+  var r = parseInt(DISPLAY_BG_COLOR.slice(1, 3), 16);
+  var g = parseInt(DISPLAY_BG_COLOR.slice(3, 5), 16);
+  var b = parseInt(DISPLAY_BG_COLOR.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + DISPLAY_BG_OPACITY + ')';
+}
 
 // =============================================================================
 // weather-display — Cloudflare Worker
@@ -115,7 +131,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   14;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   15;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -591,7 +607,7 @@ export default {
 
     } catch (err) {
       console.error('Worker unhandled error:', err);
-      return renderErrorPage('WEATHER UNAVAILABLE', 'Retrying shortly', layout, darkBg);
+      return renderErrorPage('WEATHER UNAVAILABLE', 'Retrying shortly', layout);
     }
   },
 };
@@ -1293,7 +1309,7 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
   const forecastHtml = buildForecastBandHtml(daily, alerts, width, eff.contentScale);
   const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, eff.contentScale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, eff.contentScale, isFull || darkBg);
+  const styles = buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, eff.contentScale);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
@@ -1325,7 +1341,7 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
   const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
   const radarHtml  = buildRadarPanelHtml(width, scale);
 
-  const styles = buildRadarOnlyStyles(width, height, scale, darkBg);
+  const styles = buildRadarOnlyStyles(width, height, scale);
 
   const body =
     '<div class="alerts">' + alertsHtml + '</div>' +
@@ -1356,7 +1372,7 @@ function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
   );
   const forecastHtml = buildStackedForecastHtml(daily, alerts, width, eff.contentScale);
 
-  const styles = buildConditionsOnlyStyles(width, height, eff.contentScale, darkBg);
+  const styles = buildConditionsOnlyStyles(width, height, eff.contentScale);
 
   const body =
     '<div class="alerts">'          + alertsHtml   + '</div>' +
@@ -2165,17 +2181,15 @@ function buildRadarScript(radarFrames) {
 // CSS STYLE BUILDERS
 // =============================================================================
 
-// Shared base styles used by all layout renderers.
-// useSolidBg: true when the full layout is active OR when ?bg=dark is set.
-// In both cases a solid dark background is rendered; otherwise transparent
-// so the display hardware's charcoal texture shows through.
-function baseStyles(width, height, useSolidBg) {
+// Builds the shared CSS foundation used by all layout style functions.
+// Page background is controlled by DISPLAY_BG_COLOR and DISPLAY_BG_OPACITY.
+function baseStyles(width, height) {
   return (
     '*, *::before, *::after{box-sizing:border-box;margin:0;padding:0;}' +
     'html,body{' +
       'width:' + width + 'px;height:' + height + 'px;' +
       'overflow:hidden;' +
-      'background:' + (useSolidBg ? DARK_BG_COLOR : 'transparent') + ';color:' + TEXT_PRIMARY + ';' +
+      'background:' + displayBgCss() + ';color:' + TEXT_PRIMARY + ';' +
       'font-family:' + FONT_STACK + ';' +
     '}' +
 
@@ -2283,9 +2297,9 @@ function baseStyles(width, height, useSolidBg) {
 }
 
 // CSS for the wide / full layout (radar + conditions side by side + hourly strip).
-function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, scale, useSolidBg) {
+function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, scale) {
   return (
-    baseStyles(width, height, useSolidBg) +
+    baseStyles(width, height) +
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
     '.forecast-band{height:' + forecastBandH + 'px;}' +
@@ -2294,18 +2308,18 @@ function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, sc
 }
 
 // CSS for split/tri radar-only layout.
-function buildRadarOnlyStyles(width, height, scale, darkBg) {
+function buildRadarOnlyStyles(width, height, scale) {
   return (
-    baseStyles(width, height, darkBg) +
+    baseStyles(width, height) +
     'body{display:flex;flex-direction:column;}' +
     '.radar-wrap{flex:1;min-height:0;position:relative;overflow:hidden;}'
   );
 }
 
 // CSS for split/tri conditions-only layout.
-function buildConditionsOnlyStyles(width, height, scale, darkBg) {
+function buildConditionsOnlyStyles(width, height, scale) {
   return (
-    baseStyles(width, height, darkBg) +
+    baseStyles(width, height) +
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{flex:1;min-height:0;border-right:none;}' +
     '.stacked-forecast{flex-shrink:0;}'
@@ -2317,7 +2331,7 @@ function buildConditionsOnlyStyles(width, height, scale, darkBg) {
 // ERROR PAGE
 // =============================================================================
 
-function renderErrorPage(title, subtitle, layout, darkBg) {
+function renderErrorPage(title, subtitle, layout) {
   const { width, height } = layout;
   const titleFont = Math.floor(Math.min(width, height) * 0.030);
   const subFont   = Math.floor(Math.min(width, height) * 0.020);
@@ -2331,7 +2345,7 @@ function renderErrorPage(title, subtitle, layout, darkBg) {
     '<style>' +
     '*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}' +
     'html,body{width:' + width + 'px;height:' + height + 'px;overflow:hidden;' +
-      'background:' + (darkBg ? DARK_BG_COLOR : 'transparent') + ';' +
+      'background:' + displayBgCss() + ';' +
       'font-family:' + FONT_STACK + ';' +
       'display:flex;align-items:center;justify-content:center;}' +
     '.err-wrap{display:flex;flex-direction:column;align-items:center;gap:' + Math.floor(subFont * 0.6) + 'px;text-align:center;}' +
