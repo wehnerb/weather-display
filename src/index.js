@@ -115,7 +115,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   13;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   14;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -125,7 +125,7 @@ const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every 
 
 // Hourly strip height (px) for wide/full layouts.
 const HOURLY_HEIGHT        = { full: 220, wide: 180 };   // SVG curve strip needs more room
-const FORECAST_BAND_HEIGHT = { full: 200, wide: 155 };   // new full-width 3-day band
+const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };   // new full-width 3-day band
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
@@ -1483,6 +1483,12 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var hiLoValFont    = Math.round(30 * scale);
   var bigTempFont    = Math.round(72 * scale);
   var unitFont       = Math.round(20 * scale);
+  var feelsLblFont   = Math.round(13 * scale);  // "Feels like" label
+  var feelsValFont   = Math.round(16 * scale);  // "Feels like" value
+  var condTextFont   = Math.round(14 * scale);  // current condition text in hero col 2
+  var aqiNumFont     = Math.round(14 * scale);  // AQI number line ("AQI 38")
+  var aqiLblFont     = Math.round(12 * scale);  // AQI category label ("Good")
+  var fcLblFont      = Math.round(14 * scale);  // "3-DAY FORECAST" section label
 
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
   var loVal = todayHiLo.low  !== null ? String(todayHiLo.low)  + '\xB0' : '--';
@@ -1501,21 +1507,21 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '<span class="temp-unit" style="font-size:' + unitFont + 'px;color:' + TEXT_TERTIARY + ';vertical-align:super;">\xB0F</span>' +
         '</div>' +
         '<div style="display:flex;align-items:baseline;gap:4px;margin-top:' + Math.round(5 * scale) + 'px;">' +
-          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;">Feels like</span>' +
-          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(16 * scale) + 'px;font-weight:800;">' + escapeHtml(feelsStr) + '</span>' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + feelsLblFont + 'px;font-weight:600;">Feels like</span>' +
+          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:800;">' + escapeHtml(feelsStr) + '</span>' +
         '</div>' +
       '</div>' +
       '<div class="hero-col" style="flex:0 0 20%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
         '<div style="display:flex;align-items:center;gap:' + gap6 + 'px;width:100%;">' +
           getConditionIcon(condText, WX_SM) +
-          '<span style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(14 * scale) + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
+          '<span style="color:' + TEXT_SECONDARY + ';font-size:' + condTextFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
             escapeHtml(condText) +
           '</span>' +
         '</div>' +
         (aqi
           ? '<div class="aqi-badge" style="background:' + aqi.category.color + ';color:' + aqi.category.text + ';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:' + Math.round(3 * scale) + 'px ' + Math.round(8 * scale) + 'px;width:100%;box-sizing:border-box;">' +
-            '<div style="font-size:' + Math.round(14 * scale) + 'px;font-weight:800;">AQI ' + aqi.aqi + '</div>' +
-            '<div style="font-size:' + Math.round(12 * scale) + 'px;font-weight:700;">' + escapeHtml(aqi.category.label) + '</div>' +
+            '<div style="font-size:' + aqiNumFont + 'px;font-weight:800;">AQI ' + aqi.aqi + '</div>' +
+            '<div style="font-size:' + aqiLblFont + 'px;font-weight:700;">' + escapeHtml(aqi.category.label) + '</div>' +
             '</div>'
           : '') +
       '</div>' +
@@ -1564,17 +1570,17 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     : '--';
 
   var humVal = wx.humidity !== null
-    ? wx.humidity + '%' + (wx.dewpoint !== null ? ' \xB7 Dew ' + wx.dewpoint + '\xB0F' : '')
+    ? wx.humidity + '%' + (wx.dewpoint !== null ? ' \xB7 Dew Point ' + wx.dewpoint + '\xB0F' : '')
     : '--';
 
-  var pressVal = wx.pressure   !== null ? wx.pressure   + ' inHg' : '--';
+  var pressVal = wx.pressure   !== null ? wx.pressure.toFixed(2) + ' inHg' : '--';
   var visVal   = wx.visibility !== null ? wx.visibility + ' mi'   : '--';
 
   var gustInner = wx.windGust !== null
-    ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;' +
+    ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
       escapeHtml(String(wx.windGust) + ' mph') + '</span>'
-    : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;">' +
+    : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;">' +
       'None</span>';
 
   var uvInner = uvIndex !== null
@@ -1612,7 +1618,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     '</div>';
 
   var forecastLabel =
-    '<div class="sec-hdr" style="font-size:' + Math.round(14 * scale) + 'px;' +
+    '<div class="sec-hdr" style="font-size:' + fcLblFont + 'px;' +
     'padding:' + Math.round(5 * scale) + 'px ' + Math.round(10 * scale) + 'px;' +
     'flex-shrink:0;">3-DAY FORECAST</div>';
 
@@ -1621,6 +1627,42 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 
 // Builds the full-width 3-day forecast band for wide/full layouts.
 function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
+  // Font sizes — declared before the loop as they depend only on scale, not on the day.
+  var alertBannerFont = Math.round(18 * scale);  // forecast card alert banner
+  var dayNameFont     = Math.round(18 * scale);  // day name (MON, TUE, WED)
+  var hiFont          = Math.round(22 * scale);  // high temperature
+  var loFont          = Math.round(16 * scale);  // low temperature
+  var sepFont         = Math.round(14 * scale);  // hi/lo separator "/"
+  var condFont        = Math.round(19 * scale);  // condition text
+  var detailFont      = Math.round(17 * scale);  // wind and precip detail lines
+
+  var bodyPadV = Math.round(6 * scale);
+  var bodyPadH = Math.round(8 * scale);
+  var row2Gap  = Math.round(6 * scale);
+  var gap6     = Math.round(6 * scale);
+
+  // Pre-scan: determine if any forecast day has an alert banner so non-banner
+  // cards can render a matching placeholder to keep content vertically aligned.
+  var anyCardHasBanner = false;
+  if (alerts && alerts.future && alerts.future.length > 0) {
+    for (var si = 0; si < daily.length; si++) {
+      for (var sai = 0; sai < alerts.future.length; sai++) {
+        var sp = alerts.future[sai];
+        var sOnset = sp.onset   ? new Date(sp.onset)   : null;
+        var sEnds  = sp.ends    ? new Date(sp.ends)     :
+                     sp.expires ? new Date(sp.expires)  : null;
+        if (!sOnset || !sEnds) continue;
+        if (toLocalDateStr(sOnset) <= daily[si].dateStr && toLocalDateStr(sEnds) >= daily[si].dateStr) {
+          anyCardHasBanner = true;
+          break;
+        }
+      }
+      if (anyCardHasBanner) break;
+    }
+  }
+  // Placeholder height matches the banner: top padding + font size + bottom padding.
+  var bannerPlaceholderH = Math.round(4 * scale) * 2 + alertBannerFont;
+
   var cardsHtml = '';
   for (var di = 0; di < daily.length; di++) {
     var day = daily[di];
@@ -1642,7 +1684,7 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
           var cls = alertSeverityClass(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
-              'font-size:' + Math.round(18 * scale) + 'px;font-weight:700;' +
+              'font-size:' + alertBannerFont + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
@@ -1650,6 +1692,11 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
           break;
         }
       }
+    }
+    // If no banner for this card but another card has one, insert a blank
+    // spacer of identical height so card content rows align horizontally.
+    if (!alertBannerHtml && anyCardHasBanner) {
+      alertBannerHtml = '<div style="height:' + bannerPlaceholderH + 'px;flex-shrink:0;"></div>';
     }
 
     var icon = getConditionIcon(day.shortForecast, WX_SM);
@@ -1660,20 +1707,8 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
 
     var precip = day.precip !== null ? day.precip : null;
 
-    var windPrecipLine = ['Wind: ' + windLine, precip !== null ? 'Precip: ' + precip + '%' : '']
-      .filter(Boolean).join(' \xB7 ');
-    if (!windLine) windPrecipLine = precip !== null ? 'Precip: ' + precip + '%' : '';
-
-    var dayNameFont = Math.round(18 * scale);
-    var hiFont      = Math.round(22 * scale);
-    var loFont      = Math.round(16 * scale);
-    var sepFont     = Math.round(14 * scale);
-    var bodyPadV    = Math.round(6  * scale);
-    var bodyPadH    = Math.round(8  * scale);
-    var row2Gap     = Math.round(6  * scale);
-    var gap6        = Math.round(6  * scale);
-    var condFont    = Math.round(19 * scale);
-    var detailFont  = Math.round(17 * scale);
+    var windLineStr   = windLine ? 'Wind: ' + windLine : '';
+    var precipLineStr = precip !== null ? 'Precip: ' + precip + '%' : '';
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
@@ -1688,10 +1723,17 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
-            (windPrecipLine
+            (windLineStr
               ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                  windPrecipLine +
+                  windLineStr +
+                '</div>'
+              : ''
+            ) +
+            (precipLineStr
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+                  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                  precipLineStr +
                 '</div>'
               : ''
             ) +
@@ -1720,6 +1762,20 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
 
 // Builds the stacked 3-day forecast for split/tri (conditions-only) layouts.
 function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
+  // Font sizes — declared before the loop as they depend only on scale, not on the day.
+  var alertBannerFont = Math.round(18 * scale);  // forecast card alert banner
+  var dayNameFont     = Math.round(18 * scale);  // day name (MON, TUE, WED)
+  var hiFont          = Math.round(22 * scale);  // high temperature
+  var loFont          = Math.round(16 * scale);  // low temperature
+  var sepFont         = Math.round(14 * scale);  // hi/lo separator "/"
+  var condFontSz      = Math.round(19 * scale);  // condition text
+  var detailFont      = Math.round(17 * scale);  // wind and precip detail lines
+
+  var bodyPadV = Math.round(6 * scale);
+  var bodyPadH = Math.round(8 * scale);
+  var row2Gap  = Math.round(6 * scale);
+  var gap6     = Math.round(6 * scale);
+
   var cardsHtml = '';
   for (var di = 0; di < daily.length; di++) {
     var day     = daily[di];
@@ -1742,7 +1798,7 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
           var cls = alertSeverityClass(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
-              'font-size:' + Math.round(18 * scale) + 'px;font-weight:700;' +
+              'font-size:' + alertBannerFont + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
@@ -1758,20 +1814,8 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
       ? escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
       : '';
     var precip = day.precip !== null ? day.precip : null;
-    var windPrecipLine = ['Wind: ' + windLine, precip !== null ? 'Precip: ' + precip + '%' : '']
-      .filter(Boolean).join(' \xB7 ');
-    if (!windLine) windPrecipLine = precip !== null ? 'Precip: ' + precip + '%' : '';
-
-    var dayNameFont = Math.round(18 * scale);
-    var hiFont      = Math.round(22 * scale);
-    var loFont      = Math.round(16 * scale);
-    var sepFont     = Math.round(14 * scale);
-    var bodyPadV    = Math.round(6  * scale);
-    var bodyPadH    = Math.round(8  * scale);
-    var row2Gap     = Math.round(6  * scale);
-    var gap6        = Math.round(6  * scale);
-    var condFontSz  = Math.round(19 * scale);
-    var detailFont  = Math.round(17 * scale);
+    var windLineStr   = windLine ? 'Wind: ' + windLine : '';
+    var precipLineStr = precip !== null ? 'Precip: ' + precip + '%' : '';
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
@@ -1786,10 +1830,17 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
-            (windPrecipLine
+            (windLineStr
               ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                  windPrecipLine +
+                  windLineStr +
+                '</div>'
+              : ''
+            ) +
+            (precipLineStr
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+                  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                  precipLineStr +
                 '</div>'
               : ''
             ) +
@@ -1830,11 +1881,16 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
   var bottomH    = stripH - timeLabelH - curveH;
   var colW       = width / hourly.length;
 
+  // Font sizes for the three hourly strip sub-bands.
+  var timeLabelFont = Math.round(18 * scale);  // hour time labels (NOW, 1 PM, etc.)
+  var lblFont       = Math.round(20 * scale);  // floating temperature labels on SVG curve
+  var precipFont    = Math.round(18 * scale);  // precipitation percentage labels
+
   // Sub-band 1: Time labels
   var timeLabelsHtml = '<div class="hour-labels" style="height:' + timeLabelH + 'px;border-bottom:1px solid ' + BORDER_SUBTLE + ';">';
   for (var i = 0; i < hourly.length; i++) {
     timeLabelsHtml +=
-      '<div class="hour-label-col" style="font-size:' + Math.round(18 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
+      '<div class="hour-label-col" style="font-size:' + timeLabelFont + 'px;font-weight:700;letter-spacing:.08em;">' +
         escapeHtml(hourly[i].label) +
       '</div>';
   }
@@ -1850,7 +1906,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     var maxT    = Math.max.apply(null, temps);
     var minT    = Math.min.apply(null, temps);
     var span    = Math.max(maxT - minT, 6);
-    var topPad  = curveH * 0.22;
+    var topPad  = curveH * 0.35;
     var botPad  = curveH * 0.06;
     var usableH = curveH - topPad - botPad;
 
@@ -1900,7 +1956,6 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
       }
 
       // Floating temp labels
-      var lblFont = Math.round(20 * scale);
       for (var ti = 0; ti < points.length; ti++) {
         svgElements += '<text x="' + points[ti].cx + '" y="' + (points[ti].cy - 10) + '"' +
           ' text-anchor="middle" dominant-baseline="auto"' +
@@ -1911,14 +1966,13 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
     }
 
     svgHtml = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + curveH +
-      '" style="display:block;">' + svgElements + '</svg>';
+      '" style="display:block;" overflow="hidden">' + svgElements + '</svg>';
   }
 
   // Sub-band 3: Condition glyphs + precip
-  var barMaxW   = Math.round(Math.min(colW * 0.4, 22));
-  var barContH  = Math.round(bottomH * 0.30);
-  var barMaxH   = Math.round(bottomH * 0.28);
-  var precipFont = Math.round(18 * scale);
+  var barMaxW  = Math.round(Math.min(colW * 0.4, 22));
+  var barContH = Math.round(bottomH * 0.30);
+  var barMaxH  = Math.round(bottomH * 0.28);
 
   var bottomHtml = '<div class="hour-bottom" style="height:' + bottomH + 'px;border-top:1px solid ' + BORDER_SUBTLE + ';">';
   for (var bi = 0; bi < hourly.length; bi++) {
@@ -1936,7 +1990,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
         '<div style="display:flex;align-items:flex-end;justify-content:center;height:' + barContH + 'px;">' +
           '<div style="width:' + barMaxW + 'px;height:' + Math.max(barH, 1) + 'px;min-height:1px;background:' + barColor + ';"></div>' +
         '</div>' +
-        '<div style="color:' + precipColor + ';font-size:' + precipFont + 'px;font-weight:700;">' +
+        '<div style="color:' + precipColor + ';font-size:' + precipFont + 'px;font-weight:700;padding-bottom:' + Math.round(3 * scale) + 'px;">' +
           escapeHtml(precipLabel) +
         '</div>' +
       '</div>';
