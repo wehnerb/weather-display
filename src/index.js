@@ -1853,7 +1853,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
   var timeLabelsHtml = '<div class="hour-labels" style="height:' + timeLabelH + 'px;border-bottom:1px solid ' + BORDER_SUBTLE + ';">';
   for (var i = 0; i < hourly.length; i++) {
     timeLabelsHtml +=
-      '<div class="hour-label-col" style="font-size:' + Math.round(14 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
+      '<div class="hour-label-col" style="font-size:' + Math.round(18 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
         escapeHtml(hourly[i].label) +
       '</div>';
   }
