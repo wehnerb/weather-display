@@ -1672,8 +1672,8 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
     var gap6        = Math.round(6  * scale);
-    var condFont    = Math.round(18 * scale);
-    var detailFont  = Math.round(16 * scale);
+    var condFont    = Math.round(19 * scale);
+    var detailFont  = Math.round(17 * scale);
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
@@ -1770,8 +1770,8 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
     var gap6        = Math.round(6  * scale);
-    var condFontSz    = Math.round(18 * scale);
-    var detailFont  = Math.round(16 * scale);
+    var condFontSz  = Math.round(19 * scale);
+    var detailFont  = Math.round(17 * scale);
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
