@@ -13,6 +13,24 @@ const LO_TEMP_COLOR = '#80c8f0';  // tonight low temperature label and value
 // temperature curve. Matches the gold already embedded in the sun SVG icons.
 const SOLAR_COLOR   = '#f0c040';
 
+// Display background for hardware displays — controls the page background color
+// and how much of the display hardware shows through. Adjust DISPLAY_BG_OPACITY
+// between 0 (fully transparent, hardware fully visible) and 1 (fully opaque).
+// DISPLAY_BG_COLOR must be a 6-digit hex string (e.g. '#111111').
+// Note: ?bg=dark and the full layout override this with DARK_BG_COLOR at full
+// opacity for testing on a computer without the display hardware background.
+const DISPLAY_BG_COLOR   = '#111111';
+const DISPLAY_BG_OPACITY = 0.92;
+
+// Builds the CSS background value for hardware displays from DISPLAY_BG_COLOR
+// and DISPLAY_BG_OPACITY. Used in baseStyles() when no solid background is forced.
+function displayBgCss() {
+  var r = parseInt(DISPLAY_BG_COLOR.slice(1, 3), 16);
+  var g = parseInt(DISPLAY_BG_COLOR.slice(3, 5), 16);
+  var b = parseInt(DISPLAY_BG_COLOR.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + DISPLAY_BG_OPACITY + ')';
+}
+
 // =============================================================================
 // weather-display — Cloudflare Worker
 // =============================================================================
@@ -115,7 +133,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   14;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   15;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -2175,7 +2193,7 @@ function baseStyles(width, height, useSolidBg) {
     'html,body{' +
       'width:' + width + 'px;height:' + height + 'px;' +
       'overflow:hidden;' +
-      'background:' + (useSolidBg ? DARK_BG_COLOR : 'transparent') + ';color:' + TEXT_PRIMARY + ';' +
+      'background:' + (useSolidBg ? DARK_BG_COLOR : displayBgCss()) + ';color:' + TEXT_PRIMARY + ';' +
       'font-family:' + FONT_STACK + ';' +
     '}' +
 
