@@ -1672,6 +1672,8 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
     var gap6        = Math.round(6  * scale);
+    var condFont    = Math.round(18 * scale);
+    var detailFont  = Math.round(16 * scale);
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
@@ -1682,12 +1684,12 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
         '<div style="flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;gap:' + gap6 + 'px;">' +
           icon +
           '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
-            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFont + 'px;font-weight:600;' +
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
             (windPrecipLine
-              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(11 * scale) + 'px;' +
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
                   windPrecipLine +
                 '</div>'
@@ -1768,6 +1770,8 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
     var gap6        = Math.round(6  * scale);
+    var condFontSz    = Math.round(18 * scale);
+    var detailFont  = Math.round(16 * scale);
 
     var cardBody =
       '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
@@ -1778,12 +1782,12 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
         '<div style="flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;gap:' + gap6 + 'px;">' +
           icon +
           '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
-            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFontSz + 'px;font-weight:600;' +
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
             (windPrecipLine
-              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(11 * scale) + 'px;' +
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
                   windPrecipLine +
                 '</div>'
