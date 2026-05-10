@@ -1466,7 +1466,7 @@ function buildRadarPanelHtml(panelWidth, scale) {
 function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes,
                                    panelWidth, scale, uvIndex) {
   var hPad  = Math.round(12 * scale);
-  var vPad  = Math.round(20 * scale);
+  var vPad  = Math.round(40 * scale);
   var gap8  = Math.round(8  * scale);
   var gap10 = Math.round(10 * scale);
   var gap6  = Math.round(6  * scale);
