@@ -115,7 +115,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   12;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   13;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -1487,17 +1487,39 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
   var loVal = todayHiLo.low  !== null ? String(todayHiLo.low)  + '\xB0' : '--';
 
+  var condText = wx.condition || '';
+  var feelsNum = apparent !== null ? apparent : (wx.temp !== null ? wx.temp : null);
+  var feelsStr = feelsNum !== null ? String(feelsNum) + '\xB0F' : '--';
+
   var heroRow =
     '<div class="hero-row">' +
-      '<div class="hero-col" style="flex:0 0 45%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 24%;padding:' + vPad + 'px ' + hPad + 'px;">' +
         '<div style="display:flex;flex-direction:row;align-items:flex-start;">' +
           '<span class="temp-val" style="font-size:' + bigTempFont + 'px;font-weight:800;line-height:1;">' +
             escapeHtml(tempStr) +
           '</span>' +
           '<span class="temp-unit" style="font-size:' + unitFont + 'px;color:' + TEXT_TERTIARY + ';vertical-align:super;">\xB0F</span>' +
         '</div>' +
+        '<div style="display:flex;align-items:baseline;gap:4px;margin-top:' + Math.round(5 * scale) + 'px;">' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;">Feels like</span>' +
+          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(16 * scale) + 'px;font-weight:800;">' + escapeHtml(feelsStr) + '</span>' +
+        '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 20%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
+        '<div style="display:flex;align-items:center;gap:' + gap6 + 'px;width:100%;">' +
+          getConditionIcon(condText, WX_SM) +
+          '<span style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(14 * scale) + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
+            escapeHtml(condText) +
+          '</span>' +
+        '</div>' +
+        (aqi
+          ? '<div class="aqi-badge" style="background:' + aqi.category.color + ';color:' + aqi.category.text + ';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:' + Math.round(3 * scale) + 'px ' + Math.round(8 * scale) + 'px;width:100%;box-sizing:border-box;">' +
+            '<div style="font-size:' + Math.round(14 * scale) + 'px;font-weight:800;">AQI ' + aqi.aqi + '</div>' +
+            '<div style="font-size:' + Math.round(12 * scale) + 'px;font-weight:700;">' + escapeHtml(aqi.category.label) + '</div>' +
+            '</div>'
+          : '') +
+      '</div>' +
+      '<div class="hero-col" style="flex:0 0 22%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap10 + 'px;">' +
           '<div>' +
             '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">HIGH TODAY</div>' +
@@ -1509,7 +1531,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:1;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:1;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap8 + 'px;">' +
           '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
             WX_SVG_SUNRISE +
@@ -1529,35 +1551,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       '</div>' +
     '</div>';
 
-  // ── Region 2: Condition row ──────────────────────────────────────────────
-  var condText  = wx.condition || '';
-  var condIcon  = getConditionIcon(condText, WX_LG);
-  var condFont  = Math.round(18 * scale);
-  var feelsFont = Math.round(14 * scale);
-  var feelsNum  = apparent !== null ? apparent : (wx.temp !== null ? wx.temp : null);
-  var feelsStr  = feelsNum !== null ? String(feelsNum) + '\xB0F' : '--';
-
-  var aqiBadge = aqi
-    ? '<span class="aqi-badge" style="background:' + aqi.category.color +
-      ';color:' + aqi.category.text + ';font-size:' + Math.round(15 * scale) + 'px;">' +
-      'AQI ' + aqi.aqi + ' \xB7 ' + escapeHtml(aqi.category.label) + '</span>'
-    : '';
-
-  var condRow =
-    '<div class="cond-row" style="gap:' + gap8 + 'px;padding:' + gap6 + 'px ' + hPad + 'px;">' +
-      '<div style="flex-shrink:0;">' + condIcon + '</div>' +
-      '<div style="color:' + TEXT_SECONDARY + ';font-size:' + condFont + 'px;font-weight:700;' +
-        'text-transform:uppercase;letter-spacing:.1em;">' +
-        escapeHtml(condText) +
-      '</div>' +
-      '<div style="flex:1;"></div>' +
-      '<div style="color:' + TEXT_SECONDARY + ';font-size:' + feelsFont + 'px;">' +
-        'Feels like <span style="color:' + TEXT_PRIMARY + ';">' + escapeHtml(feelsStr) + '</span>' +
-      '</div>' +
-      (aqiBadge ? '<div style="flex-shrink:0;">' + aqiBadge + '</div>' : '') +
-    '</div>';
-
-  // ── Region 3: Stats 3x2 grid ─────────────────────────────────────────────
+  // ── Region 2: Stats 3x2 grid ─────────────────────────────────────────────
   var statLblFont = Math.round(11 * scale);
   var statValFont = Math.round(20 * scale);
   var statPadV    = Math.round(6  * scale);
@@ -1617,20 +1611,16 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       statCellRaw('UV INDEX', uvInner) +
     '</div>';
 
-  return heroRow + condRow + statsGrid;
+  var forecastLabel =
+    '<div class="sec-hdr" style="font-size:' + Math.round(14 * scale) + 'px;' +
+    'padding:' + Math.round(5 * scale) + 'px ' + Math.round(10 * scale) + 'px;' +
+    'flex-shrink:0;">3-DAY FORECAST</div>';
+
+  return heroRow + statsGrid + forecastLabel;
 }
 
 // Builds the full-width 3-day forecast band for wide/full layouts.
 function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
-  var hdrFont  = Math.round(14 * scale);
-  var hdrPadV  = Math.round(5  * scale);
-  var hdrPadH  = Math.round(10 * scale);
-
-  var secHdr =
-    '<div class="sec-hdr" style="font-size:' + hdrFont + 'px;padding:' + hdrPadV + 'px ' + hdrPadH + 'px;">' +
-      '3-DAY FORECAST' +
-    '</div>';
-
   var cardsHtml = '';
   for (var di = 0; di < daily.length; di++) {
     var day = daily[di];
@@ -1678,43 +1668,41 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
     var hiFont      = Math.round(22 * scale);
     var loFont      = Math.round(16 * scale);
     var sepFont     = Math.round(14 * scale);
-    var condFont    = Math.round(18 * scale);
-    var detailFont  = Math.round(16 * scale);
     var bodyPadV    = Math.round(6  * scale);
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
+    var gap6        = Math.round(6  * scale);
 
     var cardBody =
-      '<div class="fc-card-body" style="padding:' + bodyPadV + 'px ' + bodyPadH + 'px;">' +
-        '<div style="display:flex;align-items:center;">' +
-          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
-            'text-transform:uppercase;letter-spacing:.08em;">' +
-            escapeHtml(day.dayName) +
-          '</span>' +
-          '<div style="flex:1;"></div>' +
-          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
-            escapeHtml(hi) +
-          '</span>' +
-          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 3px;">/</span>' +
-          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
-            escapeHtml(lo) +
-          '</span>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:' + row2Gap + 'px;">' +
-          '<div style="flex-shrink:0;">' + icon + '</div>' +
+      '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
+        '<span style="flex-shrink:0;color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
+          'text-transform:uppercase;letter-spacing:.08em;">' +
+          escapeHtml(day.dayName) +
+        '</span>' +
+        '<div style="flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;gap:' + gap6 + 'px;">' +
+          icon +
           '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
-            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFont + 'px;' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;' +
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
             (windPrecipLine
-              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(11 * scale) + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
                   windPrecipLine +
                 '</div>'
               : ''
             ) +
           '</div>' +
+        '</div>' +
+        '<div style="flex-shrink:0;display:flex;align-items:baseline;gap:2px;">' +
+          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
+            escapeHtml(hi) +
+          '</span>' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 2px;">/</span>' +
+          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
+            escapeHtml(lo) +
+          '</span>' +
         '</div>' +
       '</div>';
 
@@ -1725,20 +1713,11 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
       '</div>';
   }
 
-  return secHdr + '<div class="fc-cards">' + cardsHtml + '</div>';
+  return '<div class="fc-cards">' + cardsHtml + '</div>';
 }
 
 // Builds the stacked 3-day forecast for split/tri (conditions-only) layouts.
 function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
-  var hdrFont  = Math.round(14 * scale);
-  var hdrPadV  = Math.round(5  * scale);
-  var hdrPadH  = Math.round(10 * scale);
-
-  var secHdr =
-    '<div class="sec-hdr" style="font-size:' + hdrFont + 'px;padding:' + hdrPadV + 'px ' + hdrPadH + 'px;">' +
-      '3-DAY FORECAST' +
-    '</div>';
-
   var cardsHtml = '';
   for (var di = 0; di < daily.length; di++) {
     var day     = daily[di];
@@ -1785,43 +1764,41 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
     var hiFont      = Math.round(22 * scale);
     var loFont      = Math.round(16 * scale);
     var sepFont     = Math.round(14 * scale);
-    var condFontSz  = Math.round(18 * scale);
-    var detailFont  = Math.round(16 * scale);
     var bodyPadV    = Math.round(6  * scale);
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
+    var gap6        = Math.round(6  * scale);
 
     var cardBody =
-      '<div class="fc-card-body" style="padding:' + bodyPadV + 'px ' + bodyPadH + 'px;">' +
-        '<div style="display:flex;align-items:center;">' +
-          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
-            'text-transform:uppercase;letter-spacing:.08em;">' +
-            escapeHtml(day.dayName) +
-          '</span>' +
-          '<div style="flex:1;"></div>' +
-          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
-            escapeHtml(hi) +
-          '</span>' +
-          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 3px;">/</span>' +
-          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
-            escapeHtml(lo) +
-          '</span>' +
-        '</div>' +
-        '<div style="display:flex;align-items:center;gap:' + row2Gap + 'px;">' +
-          '<div style="flex-shrink:0;">' + icon + '</div>' +
+      '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
+        '<span style="flex-shrink:0;color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
+          'text-transform:uppercase;letter-spacing:.08em;">' +
+          escapeHtml(day.dayName) +
+        '</span>' +
+        '<div style="flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;gap:' + gap6 + 'px;">' +
+          icon +
           '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
-            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFontSz + 'px;' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + Math.round(13 * scale) + 'px;font-weight:600;' +
               'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
               escapeHtml(day.shortForecast || '') +
             '</div>' +
             (windPrecipLine
-              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + Math.round(11 * scale) + 'px;' +
                   'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
                   windPrecipLine +
                 '</div>'
               : ''
             ) +
           '</div>' +
+        '</div>' +
+        '<div style="flex-shrink:0;display:flex;align-items:baseline;gap:2px;">' +
+          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
+            escapeHtml(hi) +
+          '</span>' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 2px;">/</span>' +
+          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
+            escapeHtml(lo) +
+          '</span>' +
         '</div>' +
       '</div>';
 
@@ -1834,7 +1811,7 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
       '</div>';
   }
 
-  return secHdr + '<div style="display:flex;flex-direction:column;">' + cardsHtml + '</div>';
+  return '<div style="display:flex;flex-direction:column;">' + cardsHtml + '</div>';
 }
 
 // Builds the hourly strip HTML — 3 sub-bands: time labels, SVG curve, condition glyphs.
