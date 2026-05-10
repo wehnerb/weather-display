@@ -3,6 +3,16 @@ import { escapeHtml, sanitizeParam } from './shared/html.js';
 import { DARK_BG_COLOR, FONT_STACK, ACCENT_COLOR, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, BORDER_SUBTLE, BORDER_STRONG, CARD_BASE, CARD_ELEVATED, CARD_HEADER, CARD_RECESSED } from './shared/colors.js';
 import { LAYOUTS } from './shared/layouts.js';
 import { ALERT_WARNING_BG, ALERT_WARNING_BORDER, ALERT_WARNING_TEXT, ALERT_WATCH_BG, ALERT_WATCH_BORDER, ALERT_WATCH_TEXT, ALERT_ADVISORY_BG, ALERT_ADVISORY_BORDER, ALERT_ADVISORY_TEXT } from './shared/alert-colors.js';
+
+// Local color constants — specific to this worker, not in shared utils.
+// hi/lo temp colors are intentional worker-local values that may need
+// independent tuning from the shared palette.
+const HI_TEMP_COLOR = '#f0a060';  // today high temperature label and value
+const LO_TEMP_COLOR = '#80c8f0';  // tonight low temperature label and value
+// SOLAR_COLOR is used for sunrise/sunset displayed values and the hourly
+// temperature curve. Matches the gold already embedded in the sun SVG icons.
+const SOLAR_COLOR   = '#f0c040';
+
 // =============================================================================
 // weather-display — Cloudflare Worker
 // =============================================================================
@@ -105,7 +115,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   11;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   12;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -113,11 +123,9 @@ const NWS_ALERTS_TTL       =  120;   // active alerts (safety-critical; short TT
 const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
-// Conditions panel width (px) for wide/full layouts. Remainder goes to radar.
-const CONDITIONS_WIDTH = { full: 780, wide: 690 };
-
 // Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT = { full: 120, wide: 90 };
+const HOURLY_HEIGHT        = { full: 220, wide: 180 };   // SVG curve strip needs more room
+const FORECAST_BAND_HEIGHT = { full: 200, wide: 155 };   // new full-width 3-day band
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
@@ -531,6 +539,7 @@ export default {
       }
 
       const apparent = getApparentTemp(gridData, now);
+      const uvIndex  = getUvIndex(gridData, now);
       const daily    = buildDailyForecast(dailyPeriods, FORECAST_DAYS);
       const todayHiLo = getDailyHiLo(dailyPeriods);
       const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
@@ -544,12 +553,12 @@ export default {
         html = renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg);
       } else if (isSmall && viewKey === 'conditions') {
         html = renderConditionsOnly(
-          wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, layout, layoutKey, darkBg
+          wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, layout, layoutKey, darkBg, uvIndex
         );
       } else {
         html = renderFullPage(
           wx, apparent, daily, todayHiLo, hourly, alerts, aqi, sunTimes,
-          radarFrames, layout, layoutKey, darkBg
+          radarFrames, layout, layoutKey, darkBg, uvIndex
         );
       }
 
@@ -895,6 +904,40 @@ function getApparentTemp(gridProps, now) {
   return null;
 }
 
+// Extracts the UV index for the current time from the NWS gridpoints uvIndex layer.
+// Returns Math.round(entry.value) for the entry whose interval contains now,
+// or null if the layer is absent, empty, or no entry covers now.
+function getUvIndex(gridProps, now) {
+  if (!gridProps || !gridProps.uvIndex ||
+      !gridProps.uvIndex.values) return null;
+
+  for (var i = 0; i < gridProps.uvIndex.values.length; i++) {
+    var entry = gridProps.uvIndex.values[i];
+    if (entry.value === null) continue;
+    var parts = (entry.validTime || '').split('/');
+    if (parts.length !== 2) continue;
+
+    var start = new Date(parts[0]);
+    var hours = parsePTHours(parts[1]);
+    var end   = new Date(start.getTime() + hours * 3600000);
+
+    if (now >= start && now < end) {
+      return Math.round(entry.value);
+    }
+  }
+  return null;
+}
+
+// Returns the EPA UV Index category label for display alongside the numeric value.
+function getUvCategory(uv) {
+  if (uv === null || uv === undefined) return '';
+  if (uv <= 2)  return 'Low';
+  if (uv <= 5)  return 'Moderate';
+  if (uv <= 7)  return 'High';
+  if (uv <= 10) return 'Very High';
+  return 'Extreme';
+}
+
 // Parses an ISO 8601 duration string of the form "PTnH" (e.g. "PT1H", "PT3H").
 // Returns the number of hours as an integer, defaulting to 1 on parse failure.
 function parsePTHours(str) {
@@ -1219,38 +1262,37 @@ function calcSunriseSunset(date, lat, lon) {
 // =============================================================================
 
 // Renders the full weather page (wide / full layouts).
-// Contains: alert banners, radar panel (left), conditions panel (right),
-// hourly strip (bottom).
+// 4 stacked bands: alerts, hero zone (conditions + radar), forecast band, hourly strip.
 function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
-                        sunTimes, radarFrames, layout, layoutKey, darkBg) {
+                        sunTimes, radarFrames, layout, layoutKey, darkBg, uvIndex) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
-  const condWidth = CONDITIONS_WIDTH[layoutKey];
-  const radarWidth = width - condWidth;
+  const condWidth = Math.round(width * 0.415);
   const stripH    = HOURLY_HEIGHT[layoutKey];
+  const forecastBandH = FORECAST_BAND_HEIGHT[layoutKey];
 
   const scale = isFull ? 1.18 : 1.0;
 
-  const eff         = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
-  const activeAlerts = alerts.active ? alerts.active.slice(0, eff.alertCount) : [];
-  const effectiveStripH = Math.round(HOURLY_HEIGHT[layoutKey] * (eff.contentScale / scale));
+  const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
   const alertsHtml   = buildAlertBannersHtml(alerts.active, alerts.future, width, scale, eff.alertCount);
-  const radarHtml    = buildRadarPanelHtml(radarWidth, scale);
+  const radarHtml    = buildRadarPanelHtml(condWidth, scale);
   const condHtml     = buildConditionsPanelHtml(
-    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, condWidth, effectiveStripH, eff.contentScale, isFull
+    wx, apparent, todayHiLo, alerts, aqi, sunTimes, condWidth, eff.contentScale, uvIndex
   );
-  const hourlyHtml   = buildHourlyStripHtml(hourly, width, effectiveStripH, eff.contentScale);
+  const forecastHtml = buildForecastBandHtml(daily, alerts, width, eff.contentScale);
+  const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, eff.contentScale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, effectiveStripH, eff.contentScale, isFull || darkBg);
+  const styles = buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, eff.contentScale, isFull || darkBg);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
-    '<div class="main-row">' +
-      '<div class="radar-panel">' + radarHtml + '</div>' +
+    '<div class="hero-zone">' +
       '<div class="cond-panel">'  + condHtml  + '</div>' +
+      '<div class="radar-panel">' + radarHtml + '</div>' +
     '</div>' +
-    '<div class="hourly-strip">' + hourlyHtml + '</div>';
+    '<div class="forecast-band">' + forecastHtml + '</div>' +
+    '<div class="hourly-strip">'  + hourlyHtml   + '</div>';
 
   const headExtra =
     '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
@@ -1290,25 +1332,26 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
 }
 
 // Renders a conditions-only page for split/tri layouts with ?view=conditions.
-// Contains: alert banners, current conditions, stats, sunrise/sunset, 3-day forecast.
-// No hourly strip (too narrow for split/tri widths).
+// Contains: alert banners, conditions panel, stacked 3-day forecast.
 function renderConditionsOnly(wx, apparent, daily, todayHiLo, alerts, aqi,
-                               sunTimes, layout, layoutKey, darkBg) {
+                               sunTimes, layout, layoutKey, darkBg, uvIndex) {
   const { width, height } = layout;
   const scale = layoutKey === 'split' ? 1.0 : 0.88;
 
   const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
-  const alertsHtml = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
-  const condHtml   = buildConditionsPanelHtml(
-    wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, width, 0, eff.contentScale, false
+  const alertsHtml   = buildAlertBannersHtml(alerts.active, alerts.future, width, eff.contentScale, eff.alertCount);
+  const condHtml     = buildConditionsPanelHtml(
+    wx, apparent, todayHiLo, alerts, aqi, sunTimes, width, eff.contentScale, uvIndex
   );
+  const forecastHtml = buildStackedForecastHtml(daily, alerts, width, eff.contentScale);
 
   const styles = buildConditionsOnlyStyles(width, height, eff.contentScale, darkBg);
 
   const body =
-    '<div class="alerts">'    + alertsHtml + '</div>' +
-    '<div class="cond-panel">' + condHtml   + '</div>';
+    '<div class="alerts">'          + alertsHtml   + '</div>' +
+    '<div class="cond-panel">'      + condHtml      + '</div>' +
+    '<div class="stacked-forecast">' + forecastHtml + '</div>';
 
   return buildHtmlDoc(width, height, styles, body, '');
 }
@@ -1418,270 +1461,508 @@ function buildRadarPanelHtml(panelWidth, scale) {
   );
 }
 
-// Builds the HTML for the right-side conditions panel.
-// panelWidth: pixel width of the panel.
-// stripH: height (px) of the hourly strip below; 0 for conditions-only pages.
-function buildConditionsPanelHtml(wx, apparent, daily, todayHiLo, alerts, aqi,
-                                   sunTimes, panelWidth, stripH, scale, isFull) {
-  // Derive font sizes and padding from scale.
-  const hdrFont    = Math.round(17 * scale);
-  const bigTempFont = Math.round(46 * scale);
-  const unitFont   = Math.round(23 * scale);
-  const feelFont   = Math.round(19 * scale);
-  const condFont   = Math.round(21 * scale);
-  const statFont   = Math.round(20 * scale);
-  const statLblFont = Math.round(15 * scale);
-  const sunFont    = Math.round(17 * scale);
-  const sunLblFont = Math.round(17 * scale);
-  const fcDayFont  = Math.round(17 * scale);
-  const fcDescFont = Math.round(18 * scale);
-  const fcTempFont = Math.round(18 * scale);
-  const fcWindFont = Math.round(13 * scale);   // wind line below condition description
-  const pad        = Math.round(8 * scale);
-  const hdrPad     = Math.round(5  * scale);
+// Builds the HTML for the conditions panel.
+// New signature: removes daily, stripH, isFull; adds uvIndex.
+function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes,
+                                   panelWidth, scale, uvIndex) {
+  var hPad  = Math.round(12 * scale);
+  var vPad  = Math.round(10 * scale);
+  var gap8  = Math.round(8  * scale);
+  var gap10 = Math.round(10 * scale);
+  var gap6  = Math.round(6  * scale);
 
-  // ── Section header helper ────────────────────────────────────────────────
-  function sectionHeader(label) {
-    return '<div class="sec-hdr" style="padding:' + hdrPad + 'px ' + pad + 'px;' +
-      'font-size:' + hdrFont + 'px;">' + escapeHtml(label) + '</div>';
-  }
+  // ── Region 1: Hero numbers row ───────────────────────────────────────────
+  var tempStr = wx.temp !== null ? String(wx.temp) : '--';
 
-  // ── Current conditions block ─────────────────────────────────────────────
-  const tempStr    = wx.temp  !== null ? String(wx.temp)  : '--';
-  const feelsStr   = apparent !== null ? apparent + '°F'  : (wx.temp !== null ? wx.temp + '°F' : '--');
-  const condText   = wx.condition || '';
-  const condIcon   = getConditionIcon(condText, WX_LG);
+  var srStr = sunTimes.sunrise ? formatTime12h(sunTimes.sunrise) : '--';
+  var ssStr = sunTimes.sunset  ? formatTime12h(sunTimes.sunset)  : '--';
 
-  // AQI badge — omitted silently if key was not configured.
-  const aqiBadge = aqi
-    ? '<span class="aqi-badge" style="background:' + aqi.category.color +
-      ';color:' + aqi.category.text + ';font-size:' + Math.round(15 * scale) + 'px;">' +
-      'AQI ' + aqi.aqi + ' · ' + escapeHtml(aqi.category.label) + '</span>'
-    : '';
+  var sunriseLblFont = Math.round(11 * scale);
+  var sunriseValFont = Math.round(18 * scale);
+  var hiLoLblFont    = Math.round(11 * scale);
+  var hiLoValFont    = Math.round(30 * scale);
+  var bigTempFont    = Math.round(72 * scale);
+  var unitFont       = Math.round(20 * scale);
 
-  const currentHtml =
-    '<div class="current-block" style="padding:' + pad + 'px;">' +
-      '<div class="temp-side">' +
-        '<div class="temp-main">' +
-          '<span class="temp-val" style="font-size:' + bigTempFont + 'px;">' +
+  var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
+  var loVal = todayHiLo.low  !== null ? String(todayHiLo.low)  + '\xB0' : '--';
+
+  var heroRow =
+    '<div class="hero-row">' +
+      '<div class="hero-col" style="flex:0 0 45%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+        '<div style="display:flex;flex-direction:row;align-items:flex-start;">' +
+          '<span class="temp-val" style="font-size:' + bigTempFont + 'px;font-weight:800;line-height:1;">' +
             escapeHtml(tempStr) +
           '</span>' +
-          '<span class="temp-unit" style="font-size:' + unitFont + 'px;">°F</span>' +
+          '<span class="temp-unit" style="font-size:' + unitFont + 'px;color:' + TEXT_TERTIARY + ';vertical-align:super;">\xB0F</span>' +
         '</div>' +
-        '<div class="feels" style="font-size:' + feelFont + 'px;">' +
-          'Feels like ' + feelsStr +
-        '</div>' +
-        (aqiBadge ? '<div style="margin-top:' + Math.round(4*scale) + 'px;">' + aqiBadge + '</div>' : '') +
       '</div>' +
-      '<div class="cond-side">' +
-        condIcon +
-        '<div class="cond-text" style="font-size:' + condFont + 'px;">' +
-          escapeHtml(condText) +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+        '<div style="display:flex;flex-direction:column;gap:' + gap10 + 'px;">' +
+          '<div>' +
+            '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">HIGH TODAY</div>' +
+            '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoValFont + 'px;font-weight:800;line-height:1.1;">' + escapeHtml(hiVal) + '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div style="color:' + LO_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">LOW TONIGHT</div>' +
+            '<div style="color:' + LO_TEMP_COLOR + ';font-size:' + hiLoValFont + 'px;font-weight:800;line-height:1.1;">' + escapeHtml(loVal) + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="hero-col" style="flex:1;padding:' + vPad + 'px ' + hPad + 'px;">' +
+        '<div style="display:flex;flex-direction:column;gap:' + gap8 + 'px;">' +
+          '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
+            WX_SVG_SUNRISE +
+            '<div>' +
+              '<div style="color:' + TEXT_TERTIARY + ';font-size:' + sunriseLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">SUNRISE</div>' +
+              '<div style="color:' + SOLAR_COLOR + ';font-size:' + sunriseValFont + 'px;font-weight:800;">' + escapeHtml(srStr) + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
+            WX_SVG_SUNSET +
+            '<div>' +
+              '<div style="color:' + TEXT_TERTIARY + ';font-size:' + sunriseLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">SUNSET</div>' +
+              '<div style="color:' + SOLAR_COLOR + ';font-size:' + sunriseValFont + 'px;font-weight:800;">' + escapeHtml(ssStr) + '</div>' +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  // ── Stats grid ────────────────────────────────────────────────────────────
-  // Wind: show gusts only if available.
-  const windDir   = wx.windDir   !== null ? wx.windDir   : '--';
-  const windSpd   = wx.windSpeed !== null ? wx.windSpeed + ' mph' : '--';
-  const gustStr   = wx.windGust  !== null ? ' (gusts ' + wx.windGust + ')' : '';
-  const windVal   = windDir + ' ' + windSpd + gustStr;
+  // ── Region 2: Condition row ──────────────────────────────────────────────
+  var condText  = wx.condition || '';
+  var condIcon  = getConditionIcon(condText, WX_LG);
+  var condFont  = Math.round(18 * scale);
+  var feelsFont = Math.round(14 * scale);
+  var feelsNum  = apparent !== null ? apparent : (wx.temp !== null ? wx.temp : null);
+  var feelsStr  = feelsNum !== null ? String(feelsNum) + '\xB0F' : '--';
 
-  const humVal    = wx.humidity !== null
-    ? wx.humidity + '%' + (wx.dewpoint !== null ? ' · Dew ' + wx.dewpoint + '°F' : '')
+  var aqiBadge = aqi
+    ? '<span class="aqi-badge" style="background:' + aqi.category.color +
+      ';color:' + aqi.category.text + ';font-size:' + Math.round(15 * scale) + 'px;">' +
+      'AQI ' + aqi.aqi + ' \xB7 ' + escapeHtml(aqi.category.label) + '</span>'
+    : '';
+
+  var condRow =
+    '<div class="cond-row" style="gap:' + gap8 + 'px;padding:' + gap6 + 'px ' + hPad + 'px;">' +
+      '<div style="flex-shrink:0;">' + condIcon + '</div>' +
+      '<div style="color:' + TEXT_SECONDARY + ';font-size:' + condFont + 'px;font-weight:700;' +
+        'text-transform:uppercase;letter-spacing:.1em;">' +
+        escapeHtml(condText) +
+      '</div>' +
+      '<div style="flex:1;"></div>' +
+      '<div style="color:' + TEXT_SECONDARY + ';font-size:' + feelsFont + 'px;">' +
+        'Feels like <span style="color:' + TEXT_PRIMARY + ';">' + escapeHtml(feelsStr) + '</span>' +
+      '</div>' +
+      (aqiBadge ? '<div style="flex-shrink:0;">' + aqiBadge + '</div>' : '') +
+    '</div>';
+
+  // ── Region 3: Stats 3x2 grid ─────────────────────────────────────────────
+  var statLblFont = Math.round(11 * scale);
+  var statValFont = Math.round(20 * scale);
+  var statPadV    = Math.round(6  * scale);
+  var statPadH    = Math.round(10 * scale);
+
+  var windDir = wx.windDir   !== null ? wx.windDir   : null;
+  var windSpd = wx.windSpeed !== null ? wx.windSpeed : null;
+  var windVal = (windDir !== null || windSpd !== null)
+    ? [(windDir || ''), (windSpd !== null ? windSpd + ' mph' : '')].filter(Boolean).join(' ')
     : '--';
 
-  const pressVal  = wx.pressure   !== null ? wx.pressure   + ' inHg' : '--';
-  const visVal    = wx.visibility !== null ? wx.visibility + ' mi' : '--';
-
-  // Format today's hi/lo from raw daily periods passed from the top level.
-  // daily[] has today filtered out for the forecast rows, so it cannot be used here.
-  const hiLoVal = (todayHiLo.high !== null && todayHiLo.low !== null)
-    ? todayHiLo.high + '°F / ' + todayHiLo.low + '°F'
-    : todayHiLo.high !== null ? 'Hi ' + todayHiLo.high + '°F'
-    : todayHiLo.low  !== null ? 'Lo ' + todayHiLo.low  + '°F tonight'
+  var humVal = wx.humidity !== null
+    ? wx.humidity + '%' + (wx.dewpoint !== null ? ' \xB7 Dew ' + wx.dewpoint + '\xB0F' : '')
     : '--';
+
+  var pressVal = wx.pressure   !== null ? wx.pressure   + ' inHg' : '--';
+  var visVal   = wx.visibility !== null ? wx.visibility + ' mi'   : '--';
+
+  var gustInner = wx.windGust !== null
+    ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+      escapeHtml(String(wx.windGust) + ' mph') + '</span>'
+    : '<span style="color:' + TEXT_TERTIARY + ';font-size:' + statValFont + 'px;font-weight:700;">' +
+      'None</span>';
+
+  var uvInner = uvIndex !== null
+    ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;' +
+      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+      escapeHtml(String(uvIndex) + ' \xB7 ' + getUvCategory(uvIndex)) + '</span>'
+    : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;">--</span>';
 
   function statCell(label, value) {
     return (
-      '<div class="stat-cell">' +
-        '<div class="stat-lbl" style="font-size:' + statLblFont + 'px;">' +
-          escapeHtml(label) +
-        '</div>' +
-        '<div class="stat-val" style="font-size:' + statFont + 'px;">' +
-          escapeHtml(value) +
-        '</div>' +
+      '<div class="stat-cell" style="padding:' + statPadV + 'px ' + statPadH + 'px;">' +
+        '<div class="stat-lbl" style="font-size:' + statLblFont + 'px;">' + escapeHtml(label) + '</div>' +
+        '<div class="stat-val" style="font-size:' + statValFont + 'px;">' + escapeHtml(value) + '</div>' +
       '</div>'
     );
   }
 
-  const statsHtml =
+  function statCellRaw(label, innerHtml) {
+    return (
+      '<div class="stat-cell" style="padding:' + statPadV + 'px ' + statPadH + 'px;">' +
+        '<div class="stat-lbl" style="font-size:' + statLblFont + 'px;">' + escapeHtml(label) + '</div>' +
+        innerHtml +
+      '</div>'
+    );
+  }
+
+  var statsGrid =
     '<div class="stats-grid">' +
-      statCell('WIND',       windVal)  +
+      statCell('WIND SPEED', windVal)  +
       statCell('HUMIDITY',   humVal)   +
       statCell('PRESSURE',   pressVal) +
+      statCellRaw('WIND GUST',  gustInner) +
       statCell('VISIBILITY', visVal)   +
-      '<div class="stat-cell stat-span2">' +
-        '<div class="stat-lbl" style="font-size:' + statLblFont + 'px;">TODAY HI / TONIGHT LO</div>' +
-        '<div class="stat-val" style="font-size:' + statFont + 'px;">' +
-          escapeHtml(hiLoVal) +
-        '</div>' +
-      '</div>' +
+      statCellRaw('UV INDEX', uvInner) +
     '</div>';
 
-  // ── Sunrise / Sunset row ─────────────────────────────────────────────────
-  const srStr = sunTimes.sunrise ? formatTime12h(sunTimes.sunrise) : '--';
-  const ssStr = sunTimes.sunset  ? formatTime12h(sunTimes.sunset)  : '--';
+  return heroRow + condRow + statsGrid;
+}
 
-  const sunHtml =
-    '<div class="sun-row">' +
-      '<div class="sun-cell">' +
-        '<span class="sun-icon">' + WX_SVG_SUNRISE + '</span>' +
-        '<div>' +
-          '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNRISE</div>' +
-          '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
-            escapeHtml(srStr) +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="sun-cell">' +
-        '<span class="sun-icon">' + WX_SVG_SUNSET + '</span>' +
-        '<div>' +
-          '<div class="sun-lbl" style="font-size:' + sunLblFont + 'px;">SUNSET</div>' +
-          '<div class="sun-time" style="font-size:' + sunFont + 'px;">' +
-            escapeHtml(ssStr) +
-          '</div>' +
-        '</div>' +
-      '</div>' +
+// Builds the full-width 3-day forecast band for wide/full layouts.
+function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
+  var hdrFont  = Math.round(14 * scale);
+  var hdrPadV  = Math.round(5  * scale);
+  var hdrPadH  = Math.round(10 * scale);
+
+  var secHdr =
+    '<div class="sec-hdr" style="font-size:' + hdrFont + 'px;padding:' + hdrPadV + 'px ' + hdrPadH + 'px;">' +
+      '3-DAY FORECAST' +
     '</div>';
 
-  // ── 3-day forecast rows ──────────────────────────────────────────────────
-  let forecastRowsHtml = '';
-  for (const day of daily) {
-    const icon     = getConditionIcon(day.shortForecast, WX_SM);
-    const precip   = day.precip !== null ? day.precip + '%' : '';
-    const hi       = day.high  !== null ? day.high  + '°' : '--';
-    const lo       = day.low   !== null ? day.low   + '°' : '--';
+  var cardsHtml = '';
+  for (var di = 0; di < daily.length; di++) {
+    var day = daily[di];
+    var hi  = day.high !== null ? String(day.high) + '\xB0' : '--';
+    var lo  = day.low  !== null ? String(day.low)  + '\xB0' : '--';
 
-    // Check whether any future alert overlaps this forecast date.
-    const badgeHtml = buildForecastAlertBadge(alerts.future, day.dateStr, scale);
+    // Alert banner check
+    var alertBannerHtml = '';
+    if (alerts && alerts.future && alerts.future.length > 0) {
+      for (var ai = 0; ai < alerts.future.length; ai++) {
+        var p = alerts.future[ai];
+        var onset  = p.onset   ? new Date(p.onset)   : null;
+        var ends   = p.ends    ? new Date(p.ends)     :
+                     p.expires ? new Date(p.expires)  : null;
+        if (!onset || !ends) continue;
+        var onsetDate = toLocalDateStr(onset);
+        var endsDate  = toLocalDateStr(ends);
+        if (onsetDate <= day.dateStr && endsDate >= day.dateStr) {
+          var cls = alertSeverityClass(p.severity);
+          alertBannerHtml =
+            '<div class="' + cls + '" style="' +
+              'font-size:' + Math.round(11 * scale) + 'px;font-weight:700;' +
+              'text-transform:uppercase;letter-spacing:.08em;' +
+              'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
+              'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+            '">⚠ ' + escapeHtml(p.event || 'Alert') + '</div>';
+          break;
+        }
+      }
+    }
 
-    // Build wind line from daytime NWS fields — omitted silently if unavailable.
-    // NWS windDirection is a cardinal string (e.g. "NW") and windSpeed is a
-    // pre-formatted string (e.g. "10 to 20 mph"). "Wind:" label added for clarity.
-    const windLine = (day.windDir || day.windSpeed)
-      ? 'Wind: ' + escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
+    var icon = getConditionIcon(day.shortForecast, WX_SM);
+
+    var windLine = (day.windDir || day.windSpeed)
+      ? escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
       : '';
 
-    forecastRowsHtml +=
-      '<div class="fc-row">' +
-        '<div class="fc-day" style="font-size:' + fcDayFont + 'px;">' +
-          escapeHtml(day.dayName) +
+    var precip = day.precip !== null ? day.precip : null;
+
+    var windPrecipLine = ['Wind: ' + windLine, precip !== null ? 'Precip: ' + precip + '%' : '']
+      .filter(Boolean).join(' \xB7 ');
+    if (!windLine) windPrecipLine = precip !== null ? 'Precip: ' + precip + '%' : '';
+
+    var dayNameFont = Math.round(18 * scale);
+    var hiFont      = Math.round(22 * scale);
+    var loFont      = Math.round(16 * scale);
+    var sepFont     = Math.round(14 * scale);
+    var condFont    = Math.round(13 * scale);
+    var detailFont  = Math.round(11 * scale);
+    var bodyPadV    = Math.round(6  * scale);
+    var bodyPadH    = Math.round(8  * scale);
+    var row2Gap     = Math.round(6  * scale);
+
+    var cardBody =
+      '<div class="fc-card-body" style="padding:' + bodyPadV + 'px ' + bodyPadH + 'px;">' +
+        '<div style="display:flex;align-items:center;">' +
+          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
+            'text-transform:uppercase;letter-spacing:.08em;">' +
+            escapeHtml(day.dayName) +
+          '</span>' +
+          '<div style="flex:1;"></div>' +
+          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
+            escapeHtml(hi) +
+          '</span>' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 3px;">/</span>' +
+          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
+            escapeHtml(lo) +
+          '</span>' +
         '</div>' +
-        '<div class="fc-icon">' + icon + '</div>' +
-        '<div class="fc-desc">' +
-          '<div class="fc-desc-text" style="font-size:' + fcDescFont + 'px;">' +
-            escapeHtml(day.shortForecast || '') +
-          '</div>' +
-          (windLine
-            ? '<div class="fc-wind" style="font-size:' + fcWindFont + 'px;">' +
-                windLine +
-              '</div>'
-            : ''
-          ) +
-        '</div>' +
-        '<div class="fc-right">' +
-          '<div class="fc-right-top">' +
-            (precip
-              ? '<div class="fc-precip" style="font-size:' + fcDescFont + 'px;">' + WX_SVG_DROP + ' ' +
-                  escapeHtml(precip) + '</div>'
-              : '<div class="fc-precip"></div>'
-            ) +
-            '<div class="fc-temp" style="font-size:' + fcTempFont + 'px;">' +
-              escapeHtml(hi) +
-              '<span class="fc-sep">/</span>' +
-              escapeHtml(lo) +
+        '<div style="display:flex;align-items:center;gap:' + row2Gap + 'px;">' +
+          '<div style="flex-shrink:0;">' + icon + '</div>' +
+          '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFont + 'px;' +
+              'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+              escapeHtml(day.shortForecast || '') +
             '</div>' +
+            (windPrecipLine
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+                  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                  windPrecipLine +
+                '</div>'
+              : ''
+            ) +
           '</div>' +
-          (badgeHtml ? '<div class="fc-badge">' + badgeHtml + '</div>' : '') +
         '</div>' +
       '</div>';
-  }
-
-  const forecastHtml =
-    '<div class="forecast">' + forecastRowsHtml + '</div>';
-
-  return (
-    (isFull ? sectionHeader('Current Conditions') : '') +
-    currentHtml +
-    statsHtml   +
-    sunHtml     +
-    sectionHeader('3-Day Forecast') +
-    forecastHtml
-  );
-}
-
-// Builds the hourly strip HTML for wide/full layouts.
-// Distributes HOURLY_COUNT cards evenly across the full page width.
-function buildHourlyStripHtml(hourly, width, stripH, scale) {
-  if (!hourly || hourly.length === 0) {
-    return '<div class="hourly-empty">Hourly data unavailable</div>';
-  }
-
-  const timeFontSize  = Math.round(16 * scale);
-  const tempFontSize  = Math.round(18 * scale);
-  const precipFontSize = Math.round(12 * scale);
-
-  let cardsHtml = '';
-  for (const slot of hourly) {
-    const icon    = getConditionIcon(slot.shortForecast, WX_SM);
-    const precip  = slot.precip !== null ? slot.precip + '%' : '';
 
     cardsHtml +=
-      '<div class="hour-card">' +
-        '<div class="hour-time" style="font-size:' + timeFontSize + 'px;">' +
-          escapeHtml(slot.label) +
-        '</div>' +
-        '<div class="hour-icon">' + icon + '</div>' +
-        '<div class="hour-temp" style="font-size:' + tempFontSize + 'px;">' +
-          escapeHtml(slot.temp !== null ? slot.temp + '°' : '--') +
-        '</div>' +
-        (precip
-          ? '<div class="hour-precip" style="font-size:' + precipFontSize + 'px;">' + WX_SVG_DROP_SM + ' ' +
-              escapeHtml(precip) + '</div>'
-          : '<div class="hour-precip"></div>'
-        ) +
+      '<div class="fc-card">' +
+        alertBannerHtml +
+        cardBody +
       '</div>';
   }
 
-  return cardsHtml;
+  return secHdr + '<div class="fc-cards">' + cardsHtml + '</div>';
 }
 
-// Builds a small future-alert badge for a forecast day, if any future alert
-// overlaps that date. Returns an HTML string or empty string.
-function buildForecastAlertBadge(futureAlerts, dateStr, scale) {
-  if (!futureAlerts || futureAlerts.length === 0) return '';
+// Builds the stacked 3-day forecast for split/tri (conditions-only) layouts.
+function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
+  var hdrFont  = Math.round(14 * scale);
+  var hdrPadV  = Math.round(5  * scale);
+  var hdrPadH  = Math.round(10 * scale);
 
-  const badgeFontSize = Math.round(9 * scale);
+  var secHdr =
+    '<div class="sec-hdr" style="font-size:' + hdrFont + 'px;padding:' + hdrPadV + 'px ' + hdrPadH + 'px;">' +
+      '3-DAY FORECAST' +
+    '</div>';
 
-  for (const p of futureAlerts) {
-    const onset  = p.onset   ? new Date(p.onset)   : null;
-    const ends   = p.ends    ? new Date(p.ends)     :
-                   p.expires ? new Date(p.expires)  : null;
-    if (!onset || !ends) continue;
+  var cardsHtml = '';
+  for (var di = 0; di < daily.length; di++) {
+    var day     = daily[di];
+    var hi      = day.high !== null ? String(day.high) + '\xB0' : '--';
+    var lo      = day.low  !== null ? String(day.low)  + '\xB0' : '--';
+    var isLast  = (di === daily.length - 1);
 
-    const onsetDate = toLocalDateStr(onset);
-    const endsDate  = toLocalDateStr(ends);
-
-    if (onsetDate <= dateStr && endsDate >= dateStr) {
-      const cls   = badgeSeverityClass(p.severity);
-      const label = escapeHtml((p.event || 'Alert').substring(0, 20));
-      return '<span class="alert-badge ' + cls + '" style="font-size:' +
-        badgeFontSize + 'px;">' + label + '</span>';
+    // Alert banner check
+    var alertBannerHtml = '';
+    if (alerts && alerts.future && alerts.future.length > 0) {
+      for (var ai = 0; ai < alerts.future.length; ai++) {
+        var p = alerts.future[ai];
+        var onset  = p.onset   ? new Date(p.onset)   : null;
+        var ends   = p.ends    ? new Date(p.ends)     :
+                     p.expires ? new Date(p.expires)  : null;
+        if (!onset || !ends) continue;
+        var onsetDate = toLocalDateStr(onset);
+        var endsDate  = toLocalDateStr(ends);
+        if (onsetDate <= day.dateStr && endsDate >= day.dateStr) {
+          var cls = alertSeverityClass(p.severity);
+          alertBannerHtml =
+            '<div class="' + cls + '" style="' +
+              'font-size:' + Math.round(11 * scale) + 'px;font-weight:700;' +
+              'text-transform:uppercase;letter-spacing:.08em;' +
+              'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
+              'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+            '">⚠ ' + escapeHtml(p.event || 'Alert') + '</div>';
+          break;
+        }
+      }
     }
+
+    var icon = getConditionIcon(day.shortForecast, WX_SM);
+
+    var windLine = (day.windDir || day.windSpeed)
+      ? escapeHtml([day.windDir, day.windSpeed].filter(Boolean).join(' '))
+      : '';
+    var precip = day.precip !== null ? day.precip : null;
+    var windPrecipLine = ['Wind: ' + windLine, precip !== null ? 'Precip: ' + precip + '%' : '']
+      .filter(Boolean).join(' \xB7 ');
+    if (!windLine) windPrecipLine = precip !== null ? 'Precip: ' + precip + '%' : '';
+
+    var dayNameFont = Math.round(18 * scale);
+    var hiFont      = Math.round(22 * scale);
+    var loFont      = Math.round(16 * scale);
+    var sepFont     = Math.round(14 * scale);
+    var condFontSz  = Math.round(13 * scale);
+    var detailFont  = Math.round(11 * scale);
+    var bodyPadV    = Math.round(6  * scale);
+    var bodyPadH    = Math.round(8  * scale);
+    var row2Gap     = Math.round(6  * scale);
+
+    var cardBody =
+      '<div class="fc-card-body" style="padding:' + bodyPadV + 'px ' + bodyPadH + 'px;">' +
+        '<div style="display:flex;align-items:center;">' +
+          '<span style="color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
+            'text-transform:uppercase;letter-spacing:.08em;">' +
+            escapeHtml(day.dayName) +
+          '</span>' +
+          '<div style="flex:1;"></div>' +
+          '<span style="color:' + HI_TEMP_COLOR + ';font-size:' + hiFont + 'px;font-weight:800;">' +
+            escapeHtml(hi) +
+          '</span>' +
+          '<span style="color:' + TEXT_TERTIARY + ';font-size:' + sepFont + 'px;margin:0 3px;">/</span>' +
+          '<span style="color:' + LO_TEMP_COLOR + ';font-size:' + loFont + 'px;font-weight:600;">' +
+            escapeHtml(lo) +
+          '</span>' +
+        '</div>' +
+        '<div style="display:flex;align-items:center;gap:' + row2Gap + 'px;">' +
+          '<div style="flex-shrink:0;">' + icon + '</div>' +
+          '<div style="flex:1;min-width:0;overflow:hidden;display:flex;flex-direction:column;">' +
+            '<div style="color:' + TEXT_PRIMARY + ';font-size:' + condFontSz + 'px;' +
+              'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+              escapeHtml(day.shortForecast || '') +
+            '</div>' +
+            (windPrecipLine
+              ? '<div style="color:' + TEXT_SECONDARY + ';font-size:' + detailFont + 'px;' +
+                  'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+                  windPrecipLine +
+                '</div>'
+              : ''
+            ) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    cardsHtml +=
+      '<div class="fc-card-stacked"' +
+        (isLast ? '' : ' style="border-bottom:1px solid ' + BORDER_SUBTLE + ';"') +
+      '>' +
+        alertBannerHtml +
+        cardBody +
+      '</div>';
   }
-  return '';
+
+  return secHdr + '<div style="display:flex;flex-direction:column;">' + cardsHtml + '</div>';
+}
+
+// Builds the hourly strip HTML — 3 sub-bands: time labels, SVG curve, condition glyphs.
+function buildHourlyStripHtml(hourly, width, stripH, scale) {
+  if (!hourly || hourly.length === 0) {
+    return '<div style="flex:1;display:flex;align-items:center;justify-content:center;' +
+      'color:' + TEXT_TERTIARY + ';font-size:12px;">Hourly data unavailable</div>';
+  }
+
+  var timeLabelH = Math.round(stripH * 0.26);
+  var curveH     = Math.round(stripH * 0.48);
+  var bottomH    = stripH - timeLabelH - curveH;
+  var colW       = width / hourly.length;
+
+  // Sub-band 1: Time labels
+  var timeLabelsHtml = '<div class="hour-labels" style="height:' + timeLabelH + 'px;border-bottom:1px solid ' + BORDER_SUBTLE + ';">';
+  for (var i = 0; i < hourly.length; i++) {
+    timeLabelsHtml +=
+      '<div class="hour-label-col" style="font-size:' + Math.round(12 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
+        escapeHtml(hourly[i].label) +
+      '</div>';
+  }
+  timeLabelsHtml += '</div>';
+
+  // Sub-band 2: SVG temperature curve
+  var temps   = [];
+  for (var j = 0; j < hourly.length; j++) {
+    if (hourly[j].temp !== null) temps.push(hourly[j].temp);
+  }
+  var svgHtml = '';
+  if (temps.length > 0) {
+    var maxT    = Math.max.apply(null, temps);
+    var minT    = Math.min.apply(null, temps);
+    var span    = Math.max(maxT - minT, 6);
+    var topPad  = curveH * 0.22;
+    var botPad  = curveH * 0.06;
+    var usableH = curveH - topPad - botPad;
+
+    var points = [];
+    for (var k = 0; k < hourly.length; k++) {
+      if (hourly[k].temp !== null) {
+        var cx = (k + 0.5) * colW;
+        var cy = topPad + (maxT - hourly[k].temp) / span * usableH;
+        points.push({ cx: cx, cy: cy, temp: hourly[k].temp });
+      }
+    }
+
+    var svgElements = '';
+
+    // Column dividers
+    for (var d = 1; d < hourly.length; d++) {
+      var dx = d * colW;
+      svgElements += '<line x1="' + dx + '" y1="0" x2="' + dx + '" y2="' + curveH + '"' +
+        ' stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3 4"/>';
+    }
+
+    // Area fill polygon
+    if (points.length > 0) {
+      var polyPts = '';
+      for (var pi = 0; pi < points.length; pi++) {
+        polyPts += points[pi].cx + ',' + points[pi].cy + ' ';
+      }
+      var lastPt  = points[points.length - 1];
+      var firstPt = points[0];
+      polyPts += (lastPt.cx + colW / 2) + ',' + curveH + ' ';
+      polyPts += (firstPt.cx - colW / 2) + ',' + curveH;
+      svgElements += '<polygon points="' + polyPts + '" fill="rgba(240,192,64,0.12)" stroke="none"/>';
+
+      // Polyline
+      var linePts = '';
+      for (var li = 0; li < points.length; li++) {
+        if (li > 0) linePts += ' ';
+        linePts += points[li].cx + ',' + points[li].cy;
+      }
+      svgElements += '<polyline points="' + linePts + '" stroke="' + SOLAR_COLOR + '"' +
+        ' stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+
+      // Dots
+      for (var gi = 0; gi < points.length; gi++) {
+        svgElements += '<circle cx="' + points[gi].cx + '" cy="' + points[gi].cy + '" r="4"' +
+          ' fill="' + SOLAR_COLOR + '" stroke="rgba(0,0,0,0.55)" stroke-width="1.5"/>';
+      }
+
+      // Floating temp labels
+      var lblFont = Math.round(11 * scale);
+      for (var ti = 0; ti < points.length; ti++) {
+        svgElements += '<text x="' + points[ti].cx + '" y="' + (points[ti].cy - 10) + '"' +
+          ' text-anchor="middle" dominant-baseline="auto"' +
+          ' fill="' + TEXT_PRIMARY + '" font-size="' + lblFont + 'px" font-weight="800">' +
+          escapeHtml(String(points[ti].temp)) + '\xB0' +
+          '</text>';
+      }
+    }
+
+    svgHtml = '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + curveH +
+      '" style="display:block;">' + svgElements + '</svg>';
+  }
+
+  // Sub-band 3: Condition glyphs + precip
+  var barMaxW   = Math.round(Math.min(colW * 0.4, 22));
+  var barContH  = Math.round(bottomH * 0.30);
+  var barMaxH   = Math.round(bottomH * 0.28);
+  var precipFont = Math.round(10 * scale);
+
+  var bottomHtml = '<div class="hour-bottom" style="height:' + bottomH + 'px;border-top:1px solid ' + BORDER_SUBTLE + ';">';
+  for (var bi = 0; bi < hourly.length; bi++) {
+    var slot = hourly[bi];
+    var slotIcon = getConditionIcon(slot.shortForecast, WX_SM);
+    var precipPct = slot.precip !== null ? slot.precip : 0;
+    var barH = Math.round(precipPct / 100 * barMaxH);
+    var barColor = precipPct > 0 ? '#4db8ff' : 'rgba(77,184,255,0.15)';
+    var precipColor = precipPct > 0 ? '#4db8ff' : TEXT_TERTIARY;
+    var precipLabel = slot.precip !== null ? String(slot.precip) + '%' : '0%';
+
+    bottomHtml +=
+      '<div class="hour-bottom-col">' +
+        slotIcon +
+        '<div style="display:flex;align-items:flex-end;justify-content:center;height:' + barContH + 'px;">' +
+          '<div style="width:' + barMaxW + 'px;height:' + Math.max(barH, 1) + 'px;min-height:1px;background:' + barColor + ';"></div>' +
+        '</div>' +
+        '<div style="color:' + precipColor + ';font-size:' + precipFont + 'px;font-weight:700;">' +
+          escapeHtml(precipLabel) +
+        '</div>' +
+      '</div>';
+  }
+  bottomHtml += '</div>';
+
+  return timeLabelsHtml + svgHtml + bottomHtml;
 }
 
 // Builds the client-side JavaScript block that initialises the Leaflet map
@@ -1902,7 +2183,7 @@ function baseStyles(width, height, useSolidBg) {
     // Conditions panel — white-tinted card surface on transparent background.
     '.cond-panel{' +
       'display:flex;flex-direction:column;overflow:hidden;' +
-      'background:' + CARD_BASE + ';border-left:1px solid ' + BORDER_SUBTLE + ';' +
+      'background:' + CARD_BASE + ';border-right:1px solid ' + BORDER_SUBTLE + ';' +
     '}' +
     // Section headers use FFD brand red — a functional label treatment, not decorative.
     '.sec-hdr{' +
@@ -1910,141 +2191,55 @@ function baseStyles(width, height, useSolidBg) {
       'font-weight:700;letter-spacing:.1em;text-transform:uppercase;' +
       'flex-shrink:0;' +
     '}' +
-    '.current-block{' +
-      'display:flex;align-items:flex-start;gap:10px;' +
-      'background:' + CARD_ELEVATED + ';flex-shrink:0;border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
-    '}' +
-    '.temp-side{flex:1;}' +
-    '.temp-main{display:flex;align-items:flex-end;line-height:1;font-variant-numeric:tabular-nums;}' +
     '.temp-val{font-weight:600;color:#fff;}' +
     '.temp-unit{color:rgba(255,255,255,0.45);margin-bottom:4px;margin-left:2px;}' +
-    '.feels{color:' + TEXT_SECONDARY + ';margin-top:4px;}' +
     '.aqi-badge{' +
       'display:inline-block;padding:2px 7px;border-radius:3px;' +
       'font-weight:700;letter-spacing:.05em;' +
     '}' +
-    '.cond-side{' +
-      'display:flex;flex-direction:column;align-items:center;gap:4px;' +
-      'flex-shrink:0;' +
-    '}' +
-    '.cond-text{color:' + TEXT_SECONDARY + ';text-align:center;text-transform:uppercase;' +
-      'letter-spacing:.04em;}' +
 
-    // Stats grid — 2-column grid, last row spans both columns
-    '.stats-grid{' +
-      'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
-    '}' +
-    '.stat-cell{' +
-      'padding:6px 10px;border-bottom:1px solid ' + BORDER_SUBTLE + ';' +
-    '}' +
-    '.stat-cell:nth-child(odd){border-right:1px solid ' + BORDER_SUBTLE + ';}' +
-    '.stat-span2{grid-column:span 2;border-right:none;}' +
-    '.stat-lbl{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.05em;}' +
-    '.stat-val{color:' + TEXT_PRIMARY + ';margin-top:1px;white-space:nowrap;' +
-      'overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}' +
+    // New layout structure classes
+    '.hero-zone{flex:1;min-height:0;display:flex;flex-direction:row;}' +
 
-    // Sunrise / sunset row
-    '.sun-row{' +
-      'display:grid;grid-template-columns:1fr 1fr;flex-shrink:0;' +
-      'border-bottom:1px solid ' + BORDER_SUBTLE + ';background:rgba(255,255,255,0.04);' +
-    '}' +
-    '.sun-cell{display:flex;align-items:center;gap:8px;padding:6px 10px;}' +
-    '.sun-cell:first-child{border-right:1px solid ' + BORDER_SUBTLE + ';}' +
-    '.sun-icon{font-size:18px;}' +
-    '.sun-lbl{color:' + TEXT_SECONDARY + ';text-transform:uppercase;letter-spacing:.05em;}' +
-    '.sun-time{color:#f0c040;font-weight:600;}' +
+    '.hero-row{flex-shrink:0;display:flex;flex-direction:row;border-bottom:1px solid ' + BORDER_SUBTLE + ';}' +
+    '.hero-col{display:flex;flex-direction:column;justify-content:center;}' +
+    '.hero-col + .hero-col{border-left:1px solid ' + BORDER_SUBTLE + ';}' +
 
-    // 3-day forecast
-    '.forecast{flex:1;display:flex;flex-direction:column;min-height:0;}' +
-    '.fc-row{' +
-      'flex:1;display:grid;' +
-      'grid-template-columns:50px auto 1fr auto;' +
-      'align-items:center;gap:6px;' +
-      'padding:0 10px;' +
-      'border-bottom:1px solid ' + BORDER_SUBTLE + ';min-height:0;' +
-    '}' +
-    '.fc-row:last-child{border-bottom:none;}' +
-    '.fc-row:nth-child(even){background:rgba(255,255,255,0.04);}' +
-    // Day name in forecast rows — white, bold. The red section header above
-    // already provides the brand accent; repeating red here would be redundant.
-    '.fc-day{font-weight:700;color:' + TEXT_PRIMARY + ';text-transform:uppercase;' +
-      'letter-spacing:.05em;}' +
-    '.fc-icon{flex-shrink:0;}' +
-    // fc-desc is a flex column: condition text on top, wind line below.
-    '.fc-desc{display:flex;flex-direction:column;justify-content:center;' +
-      'overflow:hidden;min-width:0;}' +
-    '.fc-desc-text{color:' + TEXT_PRIMARY + ';white-space:nowrap;overflow:hidden;' +
-      'text-overflow:ellipsis;}' +
-    '.fc-wind{color:rgba(255,255,255,0.55);white-space:nowrap;overflow:hidden;' +
-      'text-overflow:ellipsis;margin-top:2px;}' +
-    '.fc-precip{color:#4db8ff;font-weight:600;white-space:nowrap;}' +
-    '.fc-temp{color:' + TEXT_PRIMARY + ';font-weight:600;white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums;}' +
-    '.fc-sep{color:' + TEXT_TERTIARY + ';margin:0 2px;}' +
-    '.fc-badge{white-space:nowrap;}' +
-    '.fc-right{' +
-      'display:flex;flex-direction:column;align-items:flex-end;gap:3px;' +
-    '}' +
-    '.fc-right-top{' +
-      'display:flex;flex-direction:row;align-items:center;gap:6px;' +
-    '}' +
-    '.alert-badge{display:inline-block;padding:1px 5px;border-radius:3px;' +
-      'font-weight:700;letter-spacing:.04em;}' +
-    '.badge-warning {background:#cc2222;color:#fff;}' +
-    '.badge-watch   {background:#cc6000;color:#fff;}' +
-    '.badge-advisory{background:#888800;color:#fff;}' +
+    '.radar-panel{flex:1;min-width:0;position:relative;overflow:hidden;}' +
 
-    // Hourly strip — white-tinted card, separated from main row by a slightly
-    // brighter border to give visual weight without a red accent bar.
-    '.hourly-strip{' +
-      'display:flex;flex-direction:row;align-items:stretch;' +
-      'border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';flex-shrink:0;' +
-    '}' +
-    '.hour-card{' +
-      'flex:1;display:grid;' +
-      'grid-template-columns:auto auto;' +
-      'grid-template-rows:1fr 1fr;' +
-      'justify-content:space-around;' +
-      'align-items:center;' +
-      'border-right:1px solid ' + BORDER_SUBTLE + ';' +
-      'padding:4px 4px;' +
-    '}' +
-    '.hour-card:last-child{border-right:none;}' +
-    '.hour-time{' +
-      'grid-column:1;grid-row:1;' +
-      'color:' + TEXT_SECONDARY + ';' +
-      'text-transform:uppercase;letter-spacing:.04em;' +
-      'align-self:center;justify-self:center;' +
-    '}' +
-    '.hour-icon{' +
-      'grid-column:2;grid-row:1;' +
-      'display:flex;align-items:center;justify-content:center;' +
-    '}' +
-    '.hour-temp{' +
-      'grid-column:1;grid-row:2;' +
-      'color:#fff;font-weight:600;' +
-      'align-self:center;justify-self:center;' +
-      'font-variant-numeric:tabular-nums;' +
-    '}' +
-    '.hour-precip{' +
-      'grid-column:2;grid-row:2;' +
-      'color:#4db8ff;' +
-      'display:flex;align-items:center;justify-content:center;' +
-      'font-variant-numeric:tabular-nums;' +
-    '}' +
-    '.hourly-empty{flex:1;display:flex;align-items:center;justify-content:center;' +
-      'color:' + TEXT_TERTIARY + ';font-size:12px;}'
+    '.cond-row{flex-shrink:0;display:flex;flex-direction:row;align-items:center;background:' + CARD_ELEVATED + ';border-bottom:1px solid ' + BORDER_SUBTLE + ';}' +
+
+    '.stats-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:' + BORDER_SUBTLE + ';}' +
+    '.stat-cell{background:' + CARD_BASE + ';display:flex;flex-direction:column;justify-content:center;}' +
+    '.stat-lbl{color:' + TEXT_TERTIARY + ';text-transform:uppercase;letter-spacing:.08em;}' +
+    '.stat-val{color:' + TEXT_PRIMARY + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}' +
+
+    '.forecast-band{flex-shrink:0;display:flex;flex-direction:column;border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';}' +
+    '.fc-cards{flex:1;min-height:0;display:flex;flex-direction:row;}' +
+    '.fc-card{flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid ' + BORDER_SUBTLE + ';}' +
+    '.fc-card:last-child{border-right:none;}' +
+    '.fc-card-body{flex:1;display:flex;flex-direction:column;justify-content:space-around;min-height:0;}' +
+
+    '.stacked-forecast{flex-shrink:0;display:flex;flex-direction:column;}' +
+    '.fc-card-stacked{flex-shrink:0;}' +
+    '.fc-card-stacked:last-child{border-bottom:none;}' +
+
+    '.hourly-strip{flex-shrink:0;display:flex;flex-direction:column;border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';overflow:hidden;}' +
+    '.hour-labels{flex-shrink:0;display:flex;flex-direction:row;}' +
+    '.hour-label-col{flex:1;display:flex;align-items:center;justify-content:center;text-transform:uppercase;color:' + TEXT_SECONDARY + ';}' +
+    '.hour-bottom{flex-shrink:0;display:flex;flex-direction:row;}' +
+    '.hour-bottom-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;border-left:1px solid rgba(255,255,255,0.04);}' +
+    '.hour-bottom-col:first-child{border-left:none;}'
   );
 }
 
 // CSS for the wide / full layout (radar + conditions side by side + hourly strip).
-function buildFullPageStyles(width, height, condWidth, stripH, scale, useSolidBg) {
+function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, scale, useSolidBg) {
   return (
     baseStyles(width, height, useSolidBg) +
     'body{display:flex;flex-direction:column;}' +
-    '.main-row{flex:1;min-height:0;display:flex;flex-direction:row;}' +
-    '.radar-panel{flex:1;min-width:0;position:relative;overflow:hidden;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
+    '.forecast-band{height:' + forecastBandH + 'px;}' +
     '.hourly-strip{height:' + stripH + 'px;}'
   );
 }
@@ -2063,7 +2258,8 @@ function buildConditionsOnlyStyles(width, height, scale, darkBg) {
   return (
     baseStyles(width, height, darkBg) +
     'body{display:flex;flex-direction:column;}' +
-    '.cond-panel{flex:1;min-height:0;border-left:none;}'
+    '.cond-panel{flex:1;min-height:0;border-right:none;}' +
+    '.stacked-forecast{flex-shrink:0;}'
   );
 }
 
