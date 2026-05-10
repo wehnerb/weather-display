@@ -1491,13 +1491,13 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var sunriseValFont = Math.round(18 * scale);
   var hiLoLblFont    = Math.round(11 * scale);
   var hiLoValFont    = Math.round(30 * scale);
-  var bigTempFont    = Math.round(72 * scale);
-  var unitFont       = Math.round(20 * scale);
-  var feelsLblFont   = Math.round(13 * scale);  // "Feels like" label
-  var feelsValFont   = Math.round(16 * scale);  // "Feels like" value
-  var condTextFont   = Math.round(14 * scale);  // current condition text in hero col 2
-  var aqiNumFont     = Math.round(14 * scale);  // AQI number line ("AQI 38")
-  var aqiLblFont     = Math.round(12 * scale);  // AQI category label ("Good")
+  var bigTempFont    = Math.round(80 * scale);
+  var unitFont       = Math.round(25 * scale);
+  var feelsLblFont   = Math.round(15 * scale);  // "Feels like" label
+  var feelsValFont   = Math.round(18 * scale);  // "Feels like" value
+  var condTextFont   = Math.round(18 * scale);  // current condition text in hero col 2
+  var aqiNumFont     = Math.round(15 * scale);  // AQI number line ("AQI 38")
+  var aqiLblFont     = Math.round(13 * scale);  // AQI category label ("Good")
   var fcLblFont      = Math.round(14 * scale);  // "3-DAY FORECAST" section label
 
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
