@@ -20,7 +20,7 @@ const SOLAR_COLOR   = '#f0c040';
 // Note: ?bg=dark and the full layout override this with DARK_BG_COLOR at full
 // opacity for testing on a computer without the display hardware background.
 const DISPLAY_BG_COLOR   = '#111111';
-const DISPLAY_BG_OPACITY = 0.92;
+const DISPLAY_BG_OPACITY = 0.90;
 
 // Builds the CSS background value for hardware displays from DISPLAY_BG_COLOR
 // and DISPLAY_BG_OPACITY. Used in baseStyles() when no solid background is forced.
