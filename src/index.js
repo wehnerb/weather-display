@@ -1919,7 +1919,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
       }
 
       // Floating temp labels
-      var lblFont = Math.round(15 * scale);
+      var lblFont = Math.round(20 * scale);
       for (var ti = 0; ti < points.length; ti++) {
         svgElements += '<text x="' + points[ti].cx + '" y="' + (points[ti].cy - 10) + '"' +
           ' text-anchor="middle" dominant-baseline="auto"' +
