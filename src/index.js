@@ -1580,7 +1580,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;' +
       'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
       escapeHtml(String(wx.windGust) + ' mph') + '</span>'
-    : '<span style="color:' + TEXT_TERTIARY + ';font-size:' + statValFont + 'px;font-weight:700;">' +
+    : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;">' +
       'None</span>';
 
   var uvInner = uvIndex !== null
@@ -1652,7 +1652,7 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
           var cls = alertSeverityClass(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
-              'font-size:' + Math.round(11 * scale) + 'px;font-weight:700;' +
+              'font-size:' + Math.round(18 * scale) + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
@@ -1678,8 +1678,8 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
     var hiFont      = Math.round(22 * scale);
     var loFont      = Math.round(16 * scale);
     var sepFont     = Math.round(14 * scale);
-    var condFont    = Math.round(13 * scale);
-    var detailFont  = Math.round(11 * scale);
+    var condFont    = Math.round(16 * scale);
+    var detailFont  = Math.round(14 * scale);
     var bodyPadV    = Math.round(6  * scale);
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
@@ -1761,7 +1761,7 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
           var cls = alertSeverityClass(p.severity);
           alertBannerHtml =
             '<div class="' + cls + '" style="' +
-              'font-size:' + Math.round(11 * scale) + 'px;font-weight:700;' +
+              'font-size:' + Math.round(18 * scale) + 'px;font-weight:700;' +
               'text-transform:uppercase;letter-spacing:.08em;' +
               'padding:' + Math.round(4 * scale) + 'px ' + Math.round(8 * scale) + 'px;' +
               'flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
@@ -1785,8 +1785,8 @@ function buildStackedForecastHtml(daily, alerts, panelWidth, scale) {
     var hiFont      = Math.round(22 * scale);
     var loFont      = Math.round(16 * scale);
     var sepFont     = Math.round(14 * scale);
-    var condFontSz  = Math.round(13 * scale);
-    var detailFont  = Math.round(11 * scale);
+    var condFontSz  = Math.round(16 * scale);
+    var detailFont  = Math.round(14 * scale);
     var bodyPadV    = Math.round(6  * scale);
     var bodyPadH    = Math.round(8  * scale);
     var row2Gap     = Math.round(6  * scale);
@@ -1853,7 +1853,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
   var timeLabelsHtml = '<div class="hour-labels" style="height:' + timeLabelH + 'px;border-bottom:1px solid ' + BORDER_SUBTLE + ';">';
   for (var i = 0; i < hourly.length; i++) {
     timeLabelsHtml +=
-      '<div class="hour-label-col" style="font-size:' + Math.round(12 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
+      '<div class="hour-label-col" style="font-size:' + Math.round(14 * scale) + 'px;font-weight:700;letter-spacing:.08em;">' +
         escapeHtml(hourly[i].label) +
       '</div>';
   }
@@ -1899,8 +1899,8 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
       }
       var lastPt  = points[points.length - 1];
       var firstPt = points[0];
-      polyPts += (lastPt.cx + colW / 2) + ',' + curveH + ' ';
-      polyPts += (firstPt.cx - colW / 2) + ',' + curveH;
+      polyPts += lastPt.cx + ',' + curveH + ' ';
+      polyPts += firstPt.cx + ',' + curveH;
       svgElements += '<polygon points="' + polyPts + '" fill="rgba(240,192,64,0.12)" stroke="none"/>';
 
       // Polyline
@@ -1919,7 +1919,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
       }
 
       // Floating temp labels
-      var lblFont = Math.round(11 * scale);
+      var lblFont = Math.round(15 * scale);
       for (var ti = 0; ti < points.length; ti++) {
         svgElements += '<text x="' + points[ti].cx + '" y="' + (points[ti].cy - 10) + '"' +
           ' text-anchor="middle" dominant-baseline="auto"' +
@@ -1937,7 +1937,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
   var barMaxW   = Math.round(Math.min(colW * 0.4, 22));
   var barContH  = Math.round(bottomH * 0.30);
   var barMaxH   = Math.round(bottomH * 0.28);
-  var precipFont = Math.round(10 * scale);
+  var precipFont = Math.round(13 * scale);
 
   var bottomHtml = '<div class="hour-bottom" style="height:' + bottomH + 'px;border-top:1px solid ' + BORDER_SUBTLE + ';">';
   for (var bi = 0; bi < hourly.length; bi++) {
