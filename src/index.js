@@ -1937,7 +1937,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
   var barMaxW   = Math.round(Math.min(colW * 0.4, 22));
   var barContH  = Math.round(bottomH * 0.30);
   var barMaxH   = Math.round(bottomH * 0.28);
-  var precipFont = Math.round(13 * scale);
+  var precipFont = Math.round(18 * scale);
 
   var bottomHtml = '<div class="hour-bottom" style="height:' + bottomH + 'px;border-top:1px solid ' + BORDER_SUBTLE + ';">';
   for (var bi = 0; bi < hourly.length; bi++) {
