@@ -1658,9 +1658,9 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
   // Font sizes — declared before the loop as they depend only on scale, not on the day.
   var alertBannerFont = Math.round(18 * scale);  // forecast card alert banner
   var dayNameFont     = Math.round(18 * scale);  // day name (MON, TUE, WED)
-  var hiFont          = Math.round(22 * scale);  // high temperature
-  var loFont          = Math.round(16 * scale);  // low temperature
-  var sepFont         = Math.round(14 * scale);  // hi/lo separator "/"
+  var hiFont          = Math.round(28 * scale);  // high temperature
+  var loFont          = Math.round(22 * scale);  // low temperature
+  var sepFont         = Math.round(20 * scale);  // hi/lo separator "/"
   var condFont        = Math.round(19 * scale);  // condition text
   var detailFont      = Math.round(17 * scale);  // wind and precip detail lines
 
