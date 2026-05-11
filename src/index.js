@@ -2295,7 +2295,7 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-card-stacked:last-child{border-bottom:none;}' +
 
     '.fc-hourly-divider{flex-shrink:0;height:' + DIVIDER_HEIGHT + 'px;' +
-      'background:linear-gradient(90deg,' + ACCENT_COLOR + ' 0%,rgba(0,0,0,0) 60%);}' +
+      'background:linear-gradient(90deg,' + ACCENT_COLOR + ' 0%,rgba(0,0,0,0) 100%);}' +
     '.hourly-strip{flex-shrink:0;display:flex;flex-direction:column;background:' + CARD_BASE + ';overflow:hidden;}' +
     '.hour-labels{flex-shrink:0;display:flex;flex-direction:row;}' +
     '.hour-label-col{flex:1;display:flex;align-items:center;justify-content:center;text-transform:uppercase;color:' + TEXT_SECONDARY + ';}' +
