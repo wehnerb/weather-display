@@ -142,13 +142,13 @@ const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
 // Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT        = { full: 220, wide: 180 };   // SVG curve strip needs more room
-const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };   // new full-width 3-day band
+const HOURLY_HEIGHT        = { full: 180, wide: 150 };
+const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
 // Increase if alert text wraps; decrease to reserve less space per alert.
-const ALERT_BANNER_HEIGHT_PX = 52;
+const ALERT_BANNER_HEIGHT_PX = 55;
 
 // Maximum number of alert banners to display simultaneously.
 // Alerts are sorted by severity (most severe first) so the most important
