@@ -133,7 +133,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   15;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   16;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -144,6 +144,8 @@ const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every 
 // Hourly strip height (px) for wide/full layouts.
 const HOURLY_HEIGHT        = { full: 180, wide: 150 };
 const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };
+// Height in px of the gradient divider rule between the forecast band and hourly strip.
+const DIVIDER_HEIGHT = 4;
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
@@ -1320,6 +1322,7 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
       '<div class="radar-panel">' + radarHtml + '</div>' +
     '</div>' +
     '<div class="forecast-band">' + forecastHtml + '</div>' +
+    '<div class="fc-hourly-divider"></div>' +
     '<div class="hourly-strip">'  + hourlyHtml   + '</div>';
 
   const headExtra =
@@ -1908,8 +1911,8 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
       'color:' + TEXT_TERTIARY + ';font-size:12px;">Hourly data unavailable</div>';
   }
 
-  var timeLabelH = Math.round(stripH * 0.26);
-  var curveH     = Math.round(stripH * 0.48);
+  var timeLabelH = Math.round(stripH * 0.24);
+  var curveH     = Math.round(stripH * 0.42);
   var bottomH    = stripH - timeLabelH - curveH;
   var colW       = width / hourly.length;
 
@@ -2291,7 +2294,9 @@ function baseStyles(width, height, useSolidBg) {
     '.fc-card-stacked{flex-shrink:0;}' +
     '.fc-card-stacked:last-child{border-bottom:none;}' +
 
-    '.hourly-strip{flex-shrink:0;display:flex;flex-direction:column;border-top:1px solid ' + BORDER_STRONG + ';background:' + CARD_BASE + ';overflow:hidden;}' +
+    '.fc-hourly-divider{flex-shrink:0;height:' + DIVIDER_HEIGHT + 'px;' +
+      'background:linear-gradient(90deg,' + ACCENT_COLOR + ' 0%,rgba(0,0,0,0) 60%);}' +
+    '.hourly-strip{flex-shrink:0;display:flex;flex-direction:column;background:' + CARD_BASE + ';overflow:hidden;}' +
     '.hour-labels{flex-shrink:0;display:flex;flex-direction:row;}' +
     '.hour-label-col{flex:1;display:flex;align-items:center;justify-content:center;text-transform:uppercase;color:' + TEXT_SECONDARY + ';}' +
     '.hour-bottom{flex-shrink:0;display:flex;flex-direction:row;}' +
@@ -2307,7 +2312,7 @@ function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, sc
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
     '.forecast-band{height:' + forecastBandH + 'px;}' +
-    '.hourly-strip{height:' + stripH + 'px;}'
+    '.hourly-strip{height:' + (stripH - DIVIDER_HEIGHT) + 'px;}'
   );
 }
 
