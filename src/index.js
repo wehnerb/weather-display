@@ -142,7 +142,7 @@ const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
 // Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT        = { full: 180, wide: 150 };
+const HOURLY_HEIGHT        = { full: 220, wide: 180 };
 const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };
 // Height in px of the gradient divider rule between the forecast band and hourly strip.
 const DIVIDER_HEIGHT = 4;
