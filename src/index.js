@@ -1744,7 +1744,7 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
     var precipLineStr = precip !== null ? 'Precip: ' + precip + '%' : '';
 
     var cardBody =
-      '<div style="display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
+      '<div style="flex:1;display:flex;align-items:center;padding:' + bodyPadV + 'px ' + bodyPadH + 'px;gap:' + row2Gap + 'px;">' +
         '<span style="flex-shrink:0;color:' + TEXT_PRIMARY + ';font-size:' + dayNameFont + 'px;font-weight:800;' +
           'text-transform:uppercase;letter-spacing:.08em;">' +
           escapeHtml(day.dayName) +
