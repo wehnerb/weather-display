@@ -140,7 +140,7 @@ const NWS_ALERTS_TTL       =  120;   // active alerts (safety-critical; short TT
 const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
-const FORECAST_BAND_HEIGHT = { full: 160, wide: 130 };
+const FORECAST_BAND_HEIGHT = { full: 200, wide: 160 };
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
