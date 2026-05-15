@@ -132,7 +132,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   18;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   19;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -1292,7 +1292,7 @@ function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
   const condWidth = Math.round(width * 0.415);
   const forecastBandH = FORECAST_BAND_HEIGHT[layoutKey];
 
-  const scale = isFull ? 1.30 : 1.12;
+  const scale = isFull ? 1.45 : 1.25;
 
   const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
@@ -1311,7 +1311,6 @@ function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
       '<div class="cond-panel">'  + condHtml  + '</div>' +
       '<div class="radar-panel">' + radarHtml + '</div>' +
     '</div>' +
-    '<div style="flex-shrink:0;height:4px;background:' + ACCENT_COLOR + ';"></div>' +
     '<div class="forecast-band">' + forecastHtml + '</div>';
 
   const headExtra =
@@ -1629,7 +1628,8 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       statCell('VISIBILITY', visVal)   +
     '</div>';
 
-  return heroRow + statsGrid;
+  return heroRow + statsGrid +
+    '<div style="flex-shrink:0;height:4px;background:' + ACCENT_COLOR + ';"></div>';
 }
 
 // Builds the full-width 3-day forecast band for wide/full layouts.
