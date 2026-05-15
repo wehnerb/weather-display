@@ -38,7 +38,7 @@ function displayBgCss() {
 // weather display page for fire station display boards.
 //
 // Layout variants (controlled via ?layout= URL parameter):
-//   wide  — Radar map (left) + conditions panel (right) + 12-hour strip (bottom)
+//   wide  — Radar map (left) + conditions panel (right) + 3-day forecast (bottom)
 //   full  — Same as wide but taller (1920×1075). All sections expand slightly.
 //   split — Either radar map OR conditions panel, full width. ?view=radar|conditions
 //   tri   — Same as split but narrower. ?view=radar|conditions
@@ -111,8 +111,7 @@ const NWS_ALERT_ZONE = 'NDZ039';    // Cass County, ND
 const NWS_STATION    = 'KFAR';      // Fargo Hector International Airport
 
 // Forecast display
-const FORECAST_DAYS  = 3;		// number of days in the 3-day forecast section of the display
-const HOURLY_COUNT   = 12;   // number of hourly slots in the bottom strip
+const FORECAST_DAYS  = 3;  // number of days in the 3-day forecast section of the display
 
 // Radar animation (client-side)
 const RADAR_FRAME_COUNT = 18;    // max number of radar frames to animate
@@ -133,7 +132,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   17;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   18;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -141,11 +140,7 @@ const NWS_ALERTS_TTL       =  120;   // active alerts (safety-critical; short TT
 const AQI_TTL              =  900;   // AirNow AQI (updates hourly)
 const RAINVIEWER_TTL       =   60;   // RainViewer frame list (new frames every ~10 min)
 
-// Hourly strip height (px) for wide/full layouts.
-const HOURLY_HEIGHT        = { full: 220, wide: 180 };
-const FORECAST_BAND_HEIGHT = { full: 135, wide: 110 };
-// Height in px of the gradient divider rule between the forecast band and hourly strip.
-const DIVIDER_HEIGHT = 4;
+const FORECAST_BAND_HEIGHT = { full: 160, wide: 130 };
 
 // Alert banner configuration.
 // ALERT_BANNER_HEIGHT_PX: vertical pixels reserved per active alert banner.
@@ -523,7 +518,6 @@ export default {
         obsData,
         gridData,
         dailyPeriods,
-        hourlyPeriods,
         alertFeatures,
         aqiData,
         radarFrames,
@@ -531,7 +525,6 @@ export default {
         needsWeather ? fetchNwsObservations(env.NWS_USER_AGENT) : Promise.resolve(null),
         needsWeather ? fetchNwsGridData(env.NWS_USER_AGENT)     : Promise.resolve(null),
         needsWeather ? fetchNwsDaily(env.NWS_USER_AGENT)        : Promise.resolve(null),
-        needsWeather ? fetchNwsHourly(env.NWS_USER_AGENT)       : Promise.resolve(null),
         fetchNwsAlerts(env.NWS_USER_AGENT),
         needsWeather ? fetchAirNowAqi(env.AIRNOW_API_KEY) : Promise.resolve(null),
         needsRadar ? fetchRainViewerFrames() : Promise.resolve(null),
@@ -562,7 +555,6 @@ export default {
       const uvIndex  = getUvIndex(gridData, now);
       const daily    = buildDailyForecast(dailyPeriods, FORECAST_DAYS);
       const todayHiLo = getDailyHiLo(dailyPeriods);
-      const hourly   = buildHourlySlots(hourlyPeriods, now, HOURLY_COUNT);
       const alerts   = processAlerts(alertFeatures, now);
 
       const aqi      = processAqi(aqiData);
@@ -577,7 +569,7 @@ export default {
         );
       } else {
         html = renderFullPage(
-          wx, apparent, daily, todayHiLo, hourly, alerts, aqi, sunTimes,
+          wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes,
           radarFrames, layout, layoutKey, darkBg, uvIndex
         );
       }
@@ -1292,16 +1284,15 @@ function calcSunriseSunset(date, lat, lon) {
 // =============================================================================
 
 // Renders the full weather page (wide / full layouts).
-// 4 stacked bands: alerts, hero zone (conditions + radar), forecast band, hourly strip.
-function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
+// 4 stacked bands: alerts, hero zone (conditions + radar), accent divider, forecast band.
+function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
                         sunTimes, radarFrames, layout, layoutKey, darkBg, uvIndex) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
   const condWidth = Math.round(width * 0.415);
-  const stripH    = HOURLY_HEIGHT[layoutKey];
   const forecastBandH = FORECAST_BAND_HEIGHT[layoutKey];
 
-  const scale = isFull ? 1.18 : 1.0;
+  const scale = isFull ? 1.30 : 1.12;
 
   const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
@@ -1311,9 +1302,8 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
     wx, apparent, todayHiLo, alerts, aqi, sunTimes, condWidth, eff.contentScale, uvIndex
   );
   const forecastHtml = buildForecastBandHtml(daily, alerts, width, eff.contentScale);
-  const hourlyHtml   = buildHourlyStripHtml(hourly, width, stripH, eff.contentScale);
 
-  const styles = buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, eff.contentScale, isFull || darkBg);
+  const styles = buildFullPageStyles(width, height, condWidth, forecastBandH, eff.contentScale, isFull || darkBg);
 
   const body =
     '<div class="alerts">'  + alertsHtml + '</div>' +
@@ -1321,9 +1311,8 @@ function renderFullPage(wx, apparent, daily, todayHiLo, hourly, alerts, aqi,
       '<div class="cond-panel">'  + condHtml  + '</div>' +
       '<div class="radar-panel">' + radarHtml + '</div>' +
     '</div>' +
-    '<div class="forecast-band">' + forecastHtml + '</div>' +
-    '<div class="fc-hourly-divider"></div>' +
-    '<div class="hourly-strip">'  + hourlyHtml   + '</div>';
+    '<div style="flex-shrink:0;height:4px;background:' + ACCENT_COLOR + ';"></div>' +
+    '<div class="forecast-band">' + forecastHtml + '</div>';
 
   const headExtra =
     '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw==" crossorigin="anonymous" referrerpolicy="no-referrer">' +
@@ -1519,7 +1508,6 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var condTextFont   = Math.round(18 * scale);  // current condition text in hero col 2
   var aqiNumFont     = Math.round(15 * scale);  // AQI number line ("AQI 38")
   var aqiLblFont     = Math.round(13 * scale);  // AQI category label ("Good")
-  var fcLblFont      = Math.round(14 * scale);  // "3-DAY FORECAST" section label
 
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
   var loVal = todayHiLo.low  !== null ? String(todayHiLo.low)  + '\xB0' : '--';
@@ -1641,12 +1629,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       statCell('VISIBILITY', visVal)   +
     '</div>';
 
-  var forecastLabel =
-    '<div class="sec-hdr" style="font-size:' + fcLblFont + 'px;' +
-    'padding:' + Math.round(5 * scale) + 'px ' + Math.round(10 * scale) + 'px;' +
-    'flex-shrink:0;">3-DAY FORECAST</div>';
-
-  return heroRow + statsGrid + forecastLabel;
+  return heroRow + statsGrid;
 }
 
 // Builds the full-width 3-day forecast band for wide/full layouts.
@@ -2285,27 +2268,17 @@ function baseStyles(width, height, useSolidBg) {
 
     '.stacked-forecast{flex-shrink:0;display:flex;flex-direction:column;}' +
     '.fc-card-stacked{flex-shrink:0;}' +
-    '.fc-card-stacked:last-child{border-bottom:none;}' +
-
-    '.fc-hourly-divider{flex-shrink:0;height:' + DIVIDER_HEIGHT + 'px;' +
-      'background:linear-gradient(90deg,' + ACCENT_COLOR + ' 0%,rgba(0,0,0,0) 100%);}' +
-    '.hourly-strip{flex-shrink:0;display:flex;flex-direction:column;background:' + CARD_BASE + ';overflow:hidden;}' +
-    '.hour-labels{flex-shrink:0;display:flex;flex-direction:row;}' +
-    '.hour-label-col{flex:1;display:flex;align-items:center;justify-content:center;text-transform:uppercase;color:' + TEXT_SECONDARY + ';}' +
-    '.hour-bottom{flex-shrink:0;display:flex;flex-direction:row;}' +
-    '.hour-bottom-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;border-left:1px solid rgba(255,255,255,0.04);}' +
-    '.hour-bottom-col:first-child{border-left:none;}'
+    '.fc-card-stacked:last-child{border-bottom:none;}'
   );
 }
 
-// CSS for the wide / full layout (radar + conditions side by side + hourly strip).
-function buildFullPageStyles(width, height, condWidth, stripH, forecastBandH, scale, useSolidBg) {
+// CSS for the wide / full layout (radar + conditions side by side + forecast band).
+function buildFullPageStyles(width, height, condWidth, forecastBandH, scale, useSolidBg) {
   return (
     baseStyles(width, height, useSolidBg) +
     'body{display:flex;flex-direction:column;}' +
     '.cond-panel{width:' + condWidth + 'px;flex-shrink:0;}' +
-    '.forecast-band{height:' + forecastBandH + 'px;}' +
-    '.hourly-strip{height:' + (stripH - DIVIDER_HEIGHT) + 'px;}'
+    '.forecast-band{height:' + forecastBandH + 'px;}'
   );
 }
 
