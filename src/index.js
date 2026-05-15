@@ -133,7 +133,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   16;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   17;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -1600,9 +1600,8 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     ? [(windDir || ''), (windSpd !== null ? windSpd + ' mph' : '')].filter(Boolean).join(' ')
     : '--';
 
-  var humVal = wx.humidity !== null
-    ? wx.humidity + '%' + (wx.dewpoint !== null ? ' \xB7 Dew Point ' + wx.dewpoint + '\xB0F' : '')
-    : '--';
+  var humVal = wx.humidity !== null ? wx.humidity + '%' : '--';
+  var dewVal = wx.dewpoint !== null ? wx.dewpoint + '\xB0F' : '--';
 
   var pressVal = wx.pressure   !== null ? wx.pressure.toFixed(2) + ' inHg' : '--';
   var visVal   = wx.visibility !== null ? wx.visibility + ' mi'   : '--';
@@ -1613,12 +1612,6 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       escapeHtml(String(wx.windGust) + ' mph') + '</span>'
     : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;">' +
       'None</span>';
-
-  var uvInner = uvIndex !== null
-    ? '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;' +
-      'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-      escapeHtml(String(uvIndex) + ' \xB7 ' + getUvCategory(uvIndex)) + '</span>'
-    : '<span style="color:' + TEXT_PRIMARY + ';font-size:' + statValFont + 'px;font-weight:700;">--</span>';
 
   function statCell(label, value) {
     return (
@@ -1644,8 +1637,8 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       statCell('HUMIDITY',   humVal)   +
       statCell('PRESSURE',   pressVal) +
       statCellRaw('WIND GUST',  gustInner) +
+      statCell('DEW POINT',  dewVal)   +
       statCell('VISIBILITY', visVal)   +
-      statCellRaw('UV INDEX', uvInner) +
     '</div>';
 
   var forecastLabel =
