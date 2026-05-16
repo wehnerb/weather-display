@@ -1524,7 +1524,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '</span>' +
           '<span class="temp-unit" style="font-size:' + unitFont + 'px;color:' + TEXT_TERTIARY + ';vertical-align:super;">\xB0F</span>' +
         '</div>' +
-        '<div style="display:flex;align-items:baseline;gap:4px;margin-top:' + Math.round(5 * scale) + 'px;">' +
+        '<div style="display:flex;flex-direction:column;margin-top:' + Math.round(5 * scale) + 'px;">' +
           '<span style="color:' + TEXT_TERTIARY + ';font-size:' + feelsLblFont + 'px;font-weight:600;">Feels like</span>' +
           '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:400;">' + escapeHtml(feelsStr) + '</span>' +
         '</div>' +
