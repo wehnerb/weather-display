@@ -1496,8 +1496,8 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var srStr = sunTimes.sunrise ? formatTime12h(sunTimes.sunrise) : '--';
   var ssStr = sunTimes.sunset  ? formatTime12h(sunTimes.sunset)  : '--';
 
-  var sunriseLblFont = Math.round(14 * scale);
-  var sunriseValFont = Math.round(20 * scale);
+  var sunriseLblFont = Math.round(13 * scale);
+  var sunriseValFont = Math.round(22 * scale);
   var hiLoLblFont    = Math.round(14 * scale);
   var hiLoValFont    = Math.round(32 * scale);
   var bigTempFont    = Math.round(85 * scale);
