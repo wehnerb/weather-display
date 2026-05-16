@@ -1505,7 +1505,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var feelsLblFont   = Math.round(15 * scale);  // "Feels like" label
   var feelsValFont   = Math.round(18 * scale);  // "Feels like" value
   var condTextFont   = Math.round(18 * scale);  // current condition text in hero col 2
-  var aqiNumFont     = Math.round(18 * scale);  // AQI number line ("AQI 38")
+  var aqiNumFont     = Math.round(20 * scale);  // AQI number line ("AQI 38")
   var aqiLblFont     = Math.round(13 * scale);  // AQI category label ("Good")
 
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
@@ -1576,7 +1576,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     '</div>';
 
   // ── Region 2: Stats 3x2 grid ─────────────────────────────────────────────
-  var statLblFont = Math.round(16 * scale);
+  var statLblFont = Math.round(14 * scale);
   var statValFont = Math.round(25 * scale);
   var statPadV    = Math.round(6  * scale);
   var statPadH    = Math.round(10 * scale);
