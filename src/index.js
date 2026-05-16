@@ -1496,16 +1496,16 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
   var srStr = sunTimes.sunrise ? formatTime12h(sunTimes.sunrise) : '--';
   var ssStr = sunTimes.sunset  ? formatTime12h(sunTimes.sunset)  : '--';
 
-  var sunriseLblFont = Math.round(11 * scale);
-  var sunriseValFont = Math.round(18 * scale);
-  var hiLoLblFont    = Math.round(11 * scale);
-  var hiLoValFont    = Math.round(30 * scale);
-  var bigTempFont    = Math.round(80 * scale);
+  var sunriseLblFont = Math.round(14 * scale);
+  var sunriseValFont = Math.round(20 * scale);
+  var hiLoLblFont    = Math.round(14 * scale);
+  var hiLoValFont    = Math.round(32 * scale);
+  var bigTempFont    = Math.round(85 * scale);
   var unitFont       = Math.round(25 * scale);
   var feelsLblFont   = Math.round(15 * scale);  // "Feels like" label
   var feelsValFont   = Math.round(18 * scale);  // "Feels like" value
   var condTextFont   = Math.round(18 * scale);  // current condition text in hero col 2
-  var aqiNumFont     = Math.round(15 * scale);  // AQI number line ("AQI 38")
+  var aqiNumFont     = Math.round(18 * scale);  // AQI number line ("AQI 38")
   var aqiLblFont     = Math.round(13 * scale);  // AQI category label ("Good")
 
   var hiVal = todayHiLo.high !== null ? String(todayHiLo.high) + '\xB0' : '--';
@@ -1517,7 +1517,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 
   var heroRow =
     '<div class="hero-row">' +
-      '<div class="hero-col" style="flex:0 0 24%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;">' +
         '<div style="display:flex;flex-direction:row;align-items:flex-start;">' +
           '<span class="temp-val" style="font-size:' + bigTempFont + 'px;font-weight:800;line-height:1;">' +
             escapeHtml(tempStr) +
@@ -1529,7 +1529,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:400;">' + escapeHtml(feelsStr) + '</span>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 20%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
         '<div style="display:flex;align-items:center;gap:' + gap6 + 'px;width:100%;">' +
           getConditionIcon(condText, WX_SM) +
           '<span style="color:' + TEXT_SECONDARY + ';font-size:' + condTextFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
@@ -1543,7 +1543,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
             '</div>'
           : '') +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 22%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap10 + 'px;">' +
           '<div>' +
             '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">HIGH TODAY</div>' +
@@ -1555,7 +1555,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:1;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap8 + 'px;">' +
           '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
             WX_SVG_SUNRISE +
@@ -1576,8 +1576,8 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
     '</div>';
 
   // ── Region 2: Stats 3x2 grid ─────────────────────────────────────────────
-  var statLblFont = Math.round(13 * scale);
-  var statValFont = Math.round(20 * scale);
+  var statLblFont = Math.round(16 * scale);
+  var statValFont = Math.round(25 * scale);
   var statPadV    = Math.round(6  * scale);
   var statPadH    = Math.round(10 * scale);
 
@@ -1636,12 +1636,12 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
   // Font sizes — declared before the loop as they depend only on scale, not on the day.
   var alertBannerFont = Math.round(18 * scale);  // forecast card alert banner
-  var dayNameFont     = Math.round(18 * scale);  // day name (MON, TUE, WED)
-  var hiFont          = Math.round(28 * scale);  // high temperature
-  var loFont          = Math.round(22 * scale);  // low temperature
-  var sepFont         = Math.round(20 * scale);  // hi/lo separator "/"
-  var condFont        = Math.round(19 * scale);  // condition text
-  var detailFont      = Math.round(17 * scale);  // wind and precip detail lines
+  var dayNameFont     = Math.round(19 * scale);  // day name (MON, TUE, WED)
+  var hiFont          = Math.round(30 * scale);  // high temperature
+  var loFont          = Math.round(24 * scale);  // low temperature
+  var sepFont         = Math.round(22 * scale);  // hi/lo separator "/"
+  var condFont        = Math.round(22 * scale);  // condition text
+  var detailFont      = Math.round(18 * scale);  // wind and precip detail lines
 
   var bodyPadV = Math.round(6 * scale);
   var bodyPadH = Math.round(8 * scale);
