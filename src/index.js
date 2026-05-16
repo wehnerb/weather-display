@@ -1532,7 +1532,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
       '<div class="hero-col" style="flex:0 0 31%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
         '<div style="display:flex;align-items:center;gap:' + gap6 + 'px;width:100%;">' +
           getConditionIcon(condText, WX_SM) +
-          '<span style="color:' + TEXT_SECONDARY + ';font-size:' + condTextFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
+          '<span style="color:' + TEXT_SECONDARY + ';font-size:' + condTextFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;flex:1;min-width:0;">' +
             escapeHtml(condText) +
           '</span>' +
         '</div>' +
