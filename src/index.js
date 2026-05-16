@@ -1517,7 +1517,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 
   var heroRow =
     '<div class="hero-row">' +
-      '<div class="hero-col" style="flex:0 0 29%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 25%;padding:' + vPad + 'px ' + hPad + 'px;">' +
         '<div style="display:flex;flex-direction:row;align-items:flex-start;">' +
           '<span class="temp-val" style="font-size:' + bigTempFont + 'px;font-weight:800;line-height:1;">' +
             escapeHtml(tempStr) +
@@ -1543,7 +1543,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
             '</div>'
           : '') +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 21%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 23%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap10 + 'px;">' +
           '<div>' +
             '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">HIGH TODAY</div>' +
@@ -1555,7 +1555,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 21%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 23%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap8 + 'px;">' +
           '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
             WX_SVG_SUNRISE +
