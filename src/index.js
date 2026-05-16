@@ -1517,7 +1517,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 
   var heroRow =
     '<div class="hero-row">' +
-      '<div class="hero-col" style="flex:0 0 28%;padding:' + vPad + 'px ' + hPad + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 29%;padding:' + vPad + 'px ' + hPad + 'px;">' +
         '<div style="display:flex;flex-direction:row;align-items:flex-start;">' +
           '<span class="temp-val" style="font-size:' + bigTempFont + 'px;font-weight:800;line-height:1;">' +
             escapeHtml(tempStr) +
@@ -1529,7 +1529,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '<span style="color:' + TEXT_PRIMARY + ';font-size:' + feelsValFont + 'px;font-weight:400;">' + escapeHtml(feelsStr) + '</span>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 28%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
+      '<div class="hero-col" style="flex:0 0 29%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';align-items:flex-start;gap:' + gap8 + 'px;">' +
         '<div style="display:flex;align-items:center;gap:' + gap6 + 'px;width:100%;">' +
           getConditionIcon(condText, WX_SM) +
           '<span style="color:' + TEXT_SECONDARY + ';font-size:' + condTextFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' +
@@ -1543,7 +1543,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
             '</div>'
           : '') +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 22%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 21%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap10 + 'px;">' +
           '<div>' +
             '<div style="color:' + HI_TEMP_COLOR + ';font-size:' + hiLoLblFont + 'px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;">HIGH TODAY</div>' +
@@ -1555,7 +1555,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
           '</div>' +
         '</div>' +
       '</div>' +
-      '<div class="hero-col" style="flex:0 0 22%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
+      '<div class="hero-col" style="flex:0 0 21%;padding:' + vPad + 'px ' + hPad + 'px;border-left:1px solid ' + BORDER_SUBTLE + ';">' +
         '<div style="display:flex;flex-direction:column;gap:' + gap8 + 'px;">' +
           '<div style="display:flex;flex-direction:row;align-items:center;gap:' + gap8 + 'px;">' +
             WX_SVG_SUNRISE +
