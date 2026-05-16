@@ -1292,7 +1292,7 @@ function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
   const condWidth = Math.round(width * 0.415);
   const forecastBandH = FORECAST_BAND_HEIGHT[layoutKey];
 
-  const scale = isFull ? 1.55 : 1.45;
+  const scale = isFull ? 1.45 : 1.25;
 
   const eff = calcEffectiveHeight(alerts.active, alerts.future, height, scale);
 
