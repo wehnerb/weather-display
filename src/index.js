@@ -1640,8 +1640,8 @@ function buildForecastBandHtml(daily, alerts, bandWidth, scale) {
   var hiFont          = Math.round(30 * scale);  // high temperature
   var loFont          = Math.round(24 * scale);  // low temperature
   var sepFont         = Math.round(22 * scale);  // hi/lo separator "/"
-  var condFont        = Math.round(20 * scale);  // condition text
-  var detailFont      = Math.round(16 * scale);  // wind and precip detail lines
+  var condFont        = Math.round(18 * scale);  // condition text
+  var detailFont      = Math.round(15 * scale);  // wind and precip detail lines
 
   var bodyPadV = Math.round(6 * scale);
   var bodyPadH = Math.round(8 * scale);
