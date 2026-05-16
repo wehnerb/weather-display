@@ -132,7 +132,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   19;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   20;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -2268,7 +2268,8 @@ function baseStyles(width, height, useSolidBg) {
 
     '.stacked-forecast{flex-shrink:0;display:flex;flex-direction:column;}' +
     '.fc-card-stacked{flex-shrink:0;}' +
-    '.fc-card-stacked:last-child{border-bottom:none;}'
+    '.fc-card-stacked:last-child{border-bottom:none;}' +
+    '.leaflet-control-attribution{opacity:0.2;font-size:9px;background:transparent!important;}'
   );
 }
 
