@@ -1577,7 +1577,7 @@ function buildConditionsPanelHtml(wx, apparent, todayHiLo, alerts, aqi, sunTimes
 
   // ── Region 2: Stats 3x2 grid ─────────────────────────────────────────────
   var statLblFont = Math.round(14 * scale);
-  var statValFont = Math.round(25 * scale);
+  var statValFont = Math.round(27 * scale);
   var statPadV    = Math.round(6  * scale);
   var statPadH    = Math.round(10 * scale);
 
