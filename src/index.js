@@ -130,9 +130,13 @@ const RADAR_OPACITY     =  0.4;  // radar overlay opacity (0–1)
 const ICON_SIZE_LG   = 45;   // current conditions icon (large)
 const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
-// Cache TTLs (seconds)
+// CACHE_SECONDS: meta-refresh interval and Workers Cache read TTL (seconds).
+// CACHE_STORE_SECONDS: how long the rendered HTML page is stored in the
+//   Workers Cache. Longer than CACHE_SECONDS so a valid cached page survives
+//   transient upstream outages between refresh cycles.
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   20;   // increment to invalidate all cached pages
+const CACHE_STORE_SECONDS  = 1800;   // Workers Cache write TTL (see comment above)
+const CACHE_VERSION        =   21;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -592,7 +596,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type':           'text/html; charset=utf-8',
-            'Cache-Control':          'public, max-age=' + CACHE_SECONDS,
+            'Cache-Control':          'public, max-age=' + CACHE_STORE_SECONDS,
             'X-Content-Type-Options': 'nosniff',
           },
         });
@@ -823,14 +827,36 @@ async function fetchAirNowAqi(apiKey) {
 // Returns null on any error so callers degrade gracefully.
 async function fetchRainViewerFrames() {
   const url = 'https://api.rainviewer.com/public/weather-maps.json';
+  const fetchOpts = { cf: { cacheTtl: RAINVIEWER_TTL } };
+
+  var res = null;
+  var firstFailed = false;
+
   try {
-    const res = await fetchWithTimeout(url, {
-      cf: { cacheTtl: RAINVIEWER_TTL },
-    }, 8000);
+    res = await fetchWithTimeout(url, fetchOpts, 15000);
     if (!res.ok) {
-      console.error('RainViewer fetch failed (' + res.status + ')');
+      firstFailed = true;
+    }
+  } catch (e) {
+    firstFailed = true;
+  }
+
+  if (firstFailed) {
+    console.warn('RainViewer fetch failed on first attempt, retrying...');
+    await new Promise(function(resolve) { setTimeout(resolve, 2000); });
+    try {
+      res = await fetchWithTimeout(url, fetchOpts, 15000);
+      if (!res.ok) {
+        console.error('RainViewer fetch failed after retry:', res.status);
+        return null;
+      }
+    } catch (e) {
+      console.error('RainViewer fetch failed after retry:', e);
       return null;
     }
+  }
+
+  try {
     const data = await res.json();
 
     if (!data.radar || !data.radar.past || !data.radar.past.length) {
