@@ -132,7 +132,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   20;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   21;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -446,7 +446,7 @@ export default {
       } else {
         try {
           var airnowProbeRes = await fetchWithTimeout(
-            'https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=58102&distance=25&API_KEY=' + airnowKey,
+            'https://www.airnowapi.org/aq/observation/current/ziplatlong/?format=application/json&latitude=' + LOCATION_LAT + '&longitude=' + LOCATION_LON + '&API_KEY=' + airnowKey,
             {},
             5000
           );
@@ -788,11 +788,10 @@ async function fetchNwsAlerts(userAgent) {
 // Gracefully omitted if AIRNOW_API_KEY is absent — no key, no AQI badge.
 async function fetchAirNowAqi(apiKey) {
   if (!apiKey) return null;  // key not yet configured; omit silently
-  const url = 'https://www.airnowapi.org/aq/observation/latLong/current/' +
+  const url = 'https://www.airnowapi.org/aq/observation/current/ziplatlong/' +
     '?format=application/json' +
     '&latitude='  + LOCATION_LAT +
     '&longitude=' + LOCATION_LON +
-    '&distance=25' +
     '&API_KEY=' + apiKey;
   try {
     const res = await fetchWithTimeout(url, {
@@ -1171,13 +1170,13 @@ function badgeSeverityClass(severity) {
 function processAqi(observations) {
   if (!observations || !observations.length) return null;
   const best = observations.reduce(function(max, obs) {
-    return (obs.AQI > (max ? max.AQI : -1)) ? obs : max;
+    return (obs.nowcastAQI > (max ? max.nowcastAQI : -1)) ? obs : max;
   }, null);
   if (!best) return null;
   return {
-    aqi:       best.AQI,
-    parameter: best.ParameterName,
-    category:  aqiCategory(best.AQI),
+    aqi:       best.nowcastAQI,
+    parameter: best.parameterName,
+    category:  aqiCategory(best.nowcastAQI),
   };
 }
 
