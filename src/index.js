@@ -130,12 +130,8 @@ const RADAR_OPACITY     =  0.4;  // radar overlay opacity (0–1)
 const ICON_SIZE_LG   = 45;   // current conditions icon (large)
 const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
-// CACHE_SECONDS: meta-refresh interval and Workers Cache read TTL (seconds).
-// CACHE_STORE_SECONDS: how long the rendered HTML page is stored in the
-//   Workers Cache. Longer than CACHE_SECONDS so a valid cached page survives
-//   transient upstream outages between refresh cycles.
+// Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_STORE_SECONDS  = 1800;   // Workers Cache write TTL (see comment above)
 const CACHE_VERSION        =   21;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
@@ -450,7 +446,7 @@ export default {
       } else {
         try {
           var airnowProbeRes = await fetchWithTimeout(
-            'https://www.airnowapi.org/aq/observation/zipCode/current/?format=application/json&zipCode=58102&distance=25&API_KEY=' + airnowKey,
+            'https://www.airnowapi.org/aq/observation/current/ziplatlong/?format=application/json&latitude=' + LOCATION_LAT + '&longitude=' + LOCATION_LON + '&API_KEY=' + airnowKey,
             {},
             5000
           );
@@ -596,7 +592,7 @@ export default {
           status: 200,
           headers: {
             'Content-Type':           'text/html; charset=utf-8',
-            'Cache-Control':          'public, max-age=' + CACHE_STORE_SECONDS,
+            'Cache-Control':          'public, max-age=' + CACHE_SECONDS,
             'X-Content-Type-Options': 'nosniff',
           },
         });
@@ -792,11 +788,10 @@ async function fetchNwsAlerts(userAgent) {
 // Gracefully omitted if AIRNOW_API_KEY is absent — no key, no AQI badge.
 async function fetchAirNowAqi(apiKey) {
   if (!apiKey) return null;  // key not yet configured; omit silently
-  const url = 'https://www.airnowapi.org/aq/observation/latLong/current/' +
+  const url = 'https://www.airnowapi.org/aq/observation/current/ziplatlong/' +
     '?format=application/json' +
     '&latitude='  + LOCATION_LAT +
     '&longitude=' + LOCATION_LON +
-    '&distance=25' +
     '&API_KEY=' + apiKey;
   try {
     const res = await fetchWithTimeout(url, {
@@ -827,36 +822,14 @@ async function fetchAirNowAqi(apiKey) {
 // Returns null on any error so callers degrade gracefully.
 async function fetchRainViewerFrames() {
   const url = 'https://api.rainviewer.com/public/weather-maps.json';
-  const fetchOpts = { cf: { cacheTtl: RAINVIEWER_TTL } };
-
-  var res = null;
-  var firstFailed = false;
-
   try {
-    res = await fetchWithTimeout(url, fetchOpts, 15000);
+    const res = await fetchWithTimeout(url, {
+      cf: { cacheTtl: RAINVIEWER_TTL },
+    }, 8000);
     if (!res.ok) {
-      firstFailed = true;
-    }
-  } catch (e) {
-    firstFailed = true;
-  }
-
-  if (firstFailed) {
-    console.warn('RainViewer fetch failed on first attempt, retrying...');
-    await new Promise(function(resolve) { setTimeout(resolve, 2000); });
-    try {
-      res = await fetchWithTimeout(url, fetchOpts, 15000);
-      if (!res.ok) {
-        console.error('RainViewer fetch failed after retry:', res.status);
-        return null;
-      }
-    } catch (e) {
-      console.error('RainViewer fetch failed after retry:', e);
+      console.error('RainViewer fetch failed (' + res.status + ')');
       return null;
     }
-  }
-
-  try {
     const data = await res.json();
 
     if (!data.radar || !data.radar.past || !data.radar.past.length) {
@@ -1197,13 +1170,13 @@ function badgeSeverityClass(severity) {
 function processAqi(observations) {
   if (!observations || !observations.length) return null;
   const best = observations.reduce(function(max, obs) {
-    return (obs.AQI > (max ? max.AQI : -1)) ? obs : max;
+    return (obs.nowcastAQI > (max ? max.nowcastAQI : -1)) ? obs : max;
   }, null);
   if (!best) return null;
   return {
-    aqi:       best.AQI,
-    parameter: best.ParameterName,
-    category:  aqiCategory(best.AQI),
+    aqi:       best.nowcastAQI,
+    parameter: best.parameterName,
+    category:  aqiCategory(best.nowcastAQI),
   };
 }
 
