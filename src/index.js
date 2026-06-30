@@ -107,7 +107,14 @@ const LOCATION_LON   = -96.7898;
 const NWS_OFFICE     = 'FGF';
 const NWS_GRID_X     =  65;
 const NWS_GRID_Y     =  57;
-const NWS_ALERT_ZONE = 'NDZ039';    // Cass County, ND
+// NWS_COUNTY_CODE is used for alert queries rather than NWS_ALERT_ZONE because
+// SPC-issued county-based alerts (Tornado Watch, Severe Thunderstorm Watch) are
+// NOT returned when querying by NWS forecast zone (?zone=NDZ039). Querying by
+// county zone (?zone=NDC017) returns BOTH county-based alerts and all zone-based
+// alerts mapped to Cass County, making it fully comprehensive.
+// NWS Geolocation primer: https://www.weather.gov/media/documentation/docs/NWS_Geolocation.pdf
+const NWS_ALERT_ZONE  = 'NDZ039';  // Cass County NWS forecast zone (retained for reference)
+const NWS_COUNTY_CODE = 'NDC017';  // Cass County ND FIPS county zone — used for alert queries
 const NWS_STATION    = 'KFAR';      // Fargo Hector International Airport
 
 // Forecast display
@@ -132,7 +139,7 @@ const ICON_SIZE_SM   = 26;   // forecast rows + hourly strip icons
 
 // Cache TTLs (seconds)
 const CACHE_SECONDS        =  300;   // page cache + meta-refresh interval
-const CACHE_VERSION        =   21;   // increment to invalidate all cached pages
+const CACHE_VERSION        =   22;   // increment to invalidate all cached pages
 const NWS_CONDITIONS_TTL   =  300;   // current observations (station updates ~hourly)
 const NWS_GRIDDATA_TTL     =  300;   // apparent temperature from gridpoints
 const NWS_FORECAST_TTL     = 1800;   // daily + hourly forecast (~4 updates/day)
@@ -762,10 +769,13 @@ async function fetchNwsHourly(userAgent) {
   }
 }
 
-// Fetches active weather alerts for Cass County, ND (zone NDZ039).
+// Fetches active weather alerts for Cass County, ND.
+// Queries by county zone (NDC017) rather than forecast zone (NDZ039) so that
+// county-based alerts — Tornado Watch and Severe Thunderstorm Watch — are included.
+// County-zone queries also return all zone-based alerts mapped to the county.
 // Returns the features array or null on failure.
 async function fetchNwsAlerts(userAgent) {
-  const url = 'https://api.weather.gov/alerts/active?zone=' + NWS_ALERT_ZONE;
+  const url = 'https://api.weather.gov/alerts/active?zone=' + NWS_COUNTY_CODE;
   try {
     const res = await fetchWithTimeout(url, {
       headers: { 'User-Agent': userAgent, 'Accept': 'application/geo+json' },
@@ -1089,8 +1099,11 @@ function processAlerts(features, now) {
     const p = f.properties;
     if (!p || p.status !== 'Actual' || p.messageType === 'Cancel') continue;
 
-    const onset   = p.onset   ? new Date(p.onset)   : null;
-    const expires = p.expires ? new Date(p.expires) : null;
+    const onset      = p.onset   ? new Date(p.onset)   : null;
+    // Some SPC-issued products (e.g. Tornado Watch) may populate 'ends' instead of
+    // 'expires'. Fall back to 'ends' so these alerts are not silently discarded.
+    const expiresRaw = p.expires || p.ends || null;
+    const expires    = expiresRaw ? new Date(expiresRaw) : null;
     if (!onset || !expires) continue;
     if (expires <= now) continue;
 
