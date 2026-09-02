@@ -577,7 +577,7 @@ export default {
       } else {
         html = renderFullPage(
           wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes,
-          radarFrames, layout, layoutKey, darkBg, uvIndex
+          radarFrames, layout, layoutKey, darkBg, uvIndex, env
         );
       }
 
