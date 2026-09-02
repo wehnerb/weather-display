@@ -390,6 +390,8 @@ function getConditionIcon(shortForecast, iconSet) {
 
 export default {
   async fetch(request, env) {
+    
+    const cartoApiKey = env.CARTO_API_KEY || '';
 
     // Allow GET and HEAD (HEAD is used by UptimeRobot health monitoring).
     // All other methods are rejected to reduce attack surface.
@@ -569,7 +571,7 @@ export default {
 
       let html;
       if (isSmall && viewKey === 'radar') {
-        html = renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg);
+        html = renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg, cartoApiKey);
       } else if (isSmall && viewKey === 'conditions') {
         html = renderConditionsOnly(
           wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes, layout, layoutKey, darkBg, uvIndex
@@ -577,7 +579,7 @@ export default {
       } else {
         html = renderFullPage(
           wx, apparent, daily, todayHiLo, alerts, aqi, sunTimes,
-          radarFrames, layout, layoutKey, darkBg, uvIndex, env
+          radarFrames, layout, layoutKey, darkBg, uvIndex, cartoApiKey
         );
       }
 
@@ -1298,7 +1300,7 @@ function calcSunriseSunset(date, lat, lon) {
 // Renders the full weather page (wide / full layouts).
 // 4 stacked bands: alerts, hero zone (conditions + radar), accent divider, forecast band.
 function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
-                        sunTimes, radarFrames, layout, layoutKey, darkBg, uvIndex) {
+                        sunTimes, radarFrames, layout, layoutKey, darkBg, uvIndex, cartoApiKey) {
   const { width, height } = layout;
   const isFull    = (layoutKey === 'full');
   const condWidth = Math.round(width * 0.415);
@@ -1330,14 +1332,14 @@ function renderFullPage(wx, apparent, daily, todayHiLo, alerts, aqi,
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + buildRadarScript(radarFrames),
+    body + buildRadarScript(radarFrames, cartoApiKey),
     headExtra
   );
 }
 
 // Renders a radar-only page for split/tri layouts with ?view=radar.
 // Contains: optional alert banner, full-width animated radar map.
-function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
+function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg, cartoApiKey) {
   const { width, height } = layout;
   const scale = 1.0;
 
@@ -1357,7 +1359,7 @@ function renderRadarOnly(radarFrames, alerts, layout, layoutKey, darkBg) {
     '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>';
 
   return buildHtmlDoc(width, height, styles,
-    body + buildRadarScript(radarFrames),
+    body + buildRadarScript(radarFrames, cartoApiKey),
     headExtra
   );
 }
@@ -2073,7 +2075,7 @@ function buildRadarScript(radarFrames) {
         '});' +
 
         'var baseLayer=L.tileLayer(' +
-          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + (env.CARTO_API_KEY || '') + '",{' +
+          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + cartoApiKey + '",{' +
           'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>' +
             'OpenStreetMap</a> contributors ' +
             '© <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
