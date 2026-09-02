@@ -2044,7 +2044,7 @@ function buildHourlyStripHtml(hourly, width, stripH, scale) {
 //
 // If radarFrames is null (server fetch failed), the "Radar data unavailable"
 // fallback message is shown over the base map.
-function buildRadarScript(radarFrames) {
+function buildRadarScript(radarFrames, cartoApiKey) {
   const frames     = radarFrames || [];
   const framesJson = JSON.stringify(frames);
 
