@@ -2072,10 +2072,8 @@ function buildRadarScript(radarFrames) {
           'keyboard:false' +
         '});' +
 
-        const cartoapiKey = env.CARTO_API_KEY || '';
-
         'var baseLayer=L.tileLayer(' +
-          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${cartoapiKey}",{' +
+          '"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=' + (env.CARTO_API_KEY || '') + '",{' +
           'attribution:"© <a href=\'https://www.openstreetmap.org/copyright\'>' +
             'OpenStreetMap</a> contributors ' +
             '© <a href=\'https://carto.com/attributions\'>CARTO</a>",' +
